@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration debug="false">
+	<appender name="Console" class="ch.qos.logback.core.ConsoleAppender">
+		<encoder>
+			<pattern>%date{HH:mm:ss} [%p] %c{20}: %msg%n%ex</pattern>
+		</encoder>
+	</appender>
+	
+	<root>
+		<level value="WARN" />
+		<appender-ref ref="Console"/>
+	</root>
+</configuration>
