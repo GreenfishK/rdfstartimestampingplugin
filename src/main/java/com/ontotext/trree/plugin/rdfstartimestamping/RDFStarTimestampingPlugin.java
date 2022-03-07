@@ -9,12 +9,16 @@ import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
 import org.eclipse.rdf4j.query.BindingSet;
 import org.eclipse.rdf4j.query.Dataset;
 import org.eclipse.rdf4j.query.impl.MapBindingSet;
+import org.eclipse.rdf4j.repository.Repository;
+import org.eclipse.rdf4j.repository.RepositoryConnection;
+import org.eclipse.rdf4j.repository.sparql.SPARQLRepository;
 import org.eclipse.rdf4j.util.iterators.SingletonIterator;
 
+import javax.naming.Context;
 import java.util.Calendar;
 import java.util.Iterator;
 
-public class RDFStarTimestampingPlugin extends PluginBase implements UpdateInterpreter, Preprocessor, Postprocessor {
+public class RDFStarTimestampingPlugin extends PluginBase implements StatementListener, Preprocessor, Postprocessor {
 
 	private static final String PREFIX = "http://example.com/";
 
@@ -25,17 +29,21 @@ public class RDFStarTimestampingPlugin extends PluginBase implements UpdateInter
 	private int timeOffsetHrs = 0;
 
 	private IRI timeIri;
+	private IRI defaultGraphIri;
 
 	// IDs of the entities in the entity pool
 	private long timeID;
 	private long goFutureID;
 	private long goPastID;
 
+	private String sparqlEndpoint = "http://ThinkPad-T14s-FK:7200/repositories/test_timestamping/statements";
+	private Repository repo = new SPARQLRepository(this.sparqlEndpoint);
+	private String updateString;
 
 	// Service interface methods
 	@Override
 	public String getName() {
-		return "example";
+		return "rdf-star-timestamping";
 	}
 
 	// Plugin interface methods
@@ -51,51 +59,19 @@ public class RDFStarTimestampingPlugin extends PluginBase implements UpdateInter
 		goFutureID = pluginConnection.getEntities().put(goFutureIRI, Entities.Scope.SYSTEM);
 		goPastID = pluginConnection.getEntities().put(goPastIRI, Entities.Scope.SYSTEM);
 
-		getLogger().info("Example plugin initialized!");
-	}
+		defaultGraphIri = SimpleValueFactory.getInstance().createIRI("<http://www.ontotext.com/explicit>");
 
-	// UpdateInterpreter interface methods
-	@Override
-	public long[] getPredicatesToListenFor() {
-		// We can filter the tuples we are interested in by their predicate. We are interested only
-		// in tuples with have the predicate we are listening for.
-		return new long[] {goFutureID, goPastID};
-	}
-
-	@Override
-	public boolean interpretUpdate(long subject, long predicate, long object, long context, boolean isAddition,
-								   boolean isExplicit, PluginConnection pluginConnection) {
-		// Make sure that the subject is the time entity
-		if (subject == timeID) {
-			final String intString = pluginConnection.getEntities().get(object).stringValue();
-			int step;
-			try {
-				step = Integer.parseInt(intString);
-			} catch (NumberFormatException e) {
-				// Invalid input, propagate the error to the caller
-				throw new ClientErrorException("Invalid integer value: " + intString);
-			}
-
-			if (predicate == goFutureID) {
-				timeOffsetHrs += step;
-			} else if (predicate == goPastID) {
-				timeOffsetHrs -= step;
-			}
-
-			// We handled the statement.
-			// Return true so the statement will not be interpreted by other plugins or inserted in the DB
-			return true;
-		}
-
-		// Tell the PluginManager that we can not interpret the tuple so further processing can continue.
-		return false;
+		getLogger().info("rdf-star-timestamping plugin initialized!");
 	}
 
 	// Preprocessor interface methods
 	@Override
 	public RequestContext preprocess(Request request) {
 		// We are interested only in QueryRequests
+
 		if (request instanceof QueryRequest) {
+			getLogger().info(request.getOptions().toString());
+			getLogger().info(((QueryRequest) request).getTupleExpr().toString());
 			QueryRequest queryRequest = (QueryRequest) request;
 			Dataset dataset = queryRequest.getDataset();
 
@@ -126,8 +102,10 @@ public class RDFStarTimestampingPlugin extends PluginBase implements UpdateInter
 	// Postprocessor interface methods
 	@Override
 	public boolean shouldPostprocess(RequestContext requestContext) {
+		getLogger().info("Should postprocess? Yes");
 		// Postprocess only if we have created RequestContext in the Preprocess phase. Here the requestContext object
 		// is the same one that we created in the preprocess(...) method.
+
 		return requestContext != null;
 	}
 
@@ -135,7 +113,20 @@ public class RDFStarTimestampingPlugin extends PluginBase implements UpdateInter
 	public BindingSet postprocess(BindingSet bindingSet, RequestContext requestContext) {
 		// Filter all results. Returning null will remove the binding set from the returned query result.
 		// We will add the result we want in the flush() phase.
-		return null;
+		getLogger().info("Postprocessing");
+
+		if (updateString != null) {
+			getLogger().info("Timestamping previously added triple");
+			try (RepositoryConnection connection = repo.getConnection()) {
+				connection.begin();
+				connection.prepareUpdate(updateString).execute();
+				connection.commit();
+				getLogger().info("Triple timestamped");
+			}
+			updateString = null;
+			return null;
+		}
+		return bindingSet;
 	}
 
 	@Override
@@ -152,5 +143,43 @@ public class RDFStarTimestampingPlugin extends PluginBase implements UpdateInter
 		calendar.add(Calendar.HOUR, timeOffsetHrs);
 
 		return SimpleValueFactory.getInstance().createLiteral(calendar.getTime());
+	}
+
+
+	@Override
+	public boolean statementAdded(long subject, long predicate, long object, long context, boolean isAddition, PluginConnection pluginConnection) {
+		String s = pluginConnection.getEntities().get(subject).stringValue();
+		String o = pluginConnection.getEntities().get(predicate).stringValue();
+		String p = pluginConnection.getEntities().get(object).stringValue();
+		getLogger().info("Statement added:" + s + " " + p + " " + o + " within context:" + context);
+
+		updateString = String.format("insert { << %s %s %s >> " +
+				"<http://example.com/metadata/versioning#valid_from> ?timestamp } " +
+				"where {BIND(<http://www.w3.org/2001/XMLSchema#dateTime>(NOW()) AS ?timestamp) }",
+				entityToString(pluginConnection.getEntities().get(subject)),
+				entityToString(pluginConnection.getEntities().get(predicate)),
+				entityToString(pluginConnection.getEntities().get(object)));
+
+		return false;
+	}
+
+	@Override
+	public boolean statementRemoved(long subject, long predicate, long object, long context, boolean isAddition, PluginConnection pluginConnection) {
+		String s = pluginConnection.getEntities().get(subject).stringValue();
+		String o = pluginConnection.getEntities().get(predicate).stringValue();
+		String p = pluginConnection.getEntities().get(object).stringValue();
+		getLogger().info("Statement deleted:" + s + " " + p + " " + o + " from context:" + context);
+		return false;
+	}
+
+	private String entityToString(Value value) {
+		if (value.isIRI())
+			return "<" + value + ">";
+		if (value.isLiteral())
+			return value.toString();
+		if (value.isBNode())
+			return value.toString();
+		getLogger().error("The entity's type is not support. It is none of: IRI, literal, BNode");
+		return null;
 	}
 }
