@@ -18,7 +18,7 @@ import javax.naming.Context;
 import java.util.Calendar;
 import java.util.Iterator;
 
-public class RDFStarTimestampingPlugin extends PluginBase implements StatementListener, Preprocessor, Postprocessor {
+public class RDFStarTimestampingPlugin extends PluginBase implements StatementListener, PluginTransactionListener{
 
 	private static final String PREFIX = "http://example.com/";
 
@@ -39,6 +39,7 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 	private String sparqlEndpoint = "http://ThinkPad-T14s-FK:7200/repositories/test_timestamping/statements";
 	private Repository repo = new SPARQLRepository(this.sparqlEndpoint);
 	private String updateString;
+	private boolean triplesTimestamped = false;
 
 	// Service interface methods
 	@Override
@@ -64,88 +65,6 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 		getLogger().info("rdf-star-timestamping plugin initialized!");
 	}
 
-	// Preprocessor interface methods
-	@Override
-	public RequestContext preprocess(Request request) {
-		// We are interested only in QueryRequests
-
-		if (request instanceof QueryRequest) {
-			getLogger().info(request.getOptions().toString());
-			getLogger().info(((QueryRequest) request).getTupleExpr().toString());
-			QueryRequest queryRequest = (QueryRequest) request;
-			Dataset dataset = queryRequest.getDataset();
-
-			// Check if the predicate is included in the default graph. This means that we have a "FROM <our_predicate>"
-			// clause in the SPARQL query.
-			if ((dataset != null && dataset.getDefaultGraphs().contains(timeIri))) {
-				// Create a date/time literal
-				Value literal = createDateTimeLiteral();
-
-				// Prepare a binding set with all projected variables set to the date/time literal value
-				MapBindingSet result = new MapBindingSet();
-				for (String bindingName : queryRequest.getTupleExpr().getBindingNames()) {
-					result.addBinding(bindingName, literal);
-				}
-
-				// Create a Context object which will be available during the other phases of the request processing
-				// and set the created result as an attribute.
-				RequestContextImpl context = new RequestContextImpl();
-				context.setAttribute("bindings", result);
-
-				return context;
-			}
-		}
-		// If we are not interested in the request there is no need to create a Context.
-		return null;
-	}
-
-	// Postprocessor interface methods
-	@Override
-	public boolean shouldPostprocess(RequestContext requestContext) {
-		getLogger().info("Should postprocess? Yes");
-		// Postprocess only if we have created RequestContext in the Preprocess phase. Here the requestContext object
-		// is the same one that we created in the preprocess(...) method.
-
-		return requestContext != null;
-	}
-
-	@Override
-	public BindingSet postprocess(BindingSet bindingSet, RequestContext requestContext) {
-		// Filter all results. Returning null will remove the binding set from the returned query result.
-		// We will add the result we want in the flush() phase.
-		getLogger().info("Postprocessing");
-
-		if (updateString != null) {
-			getLogger().info("Timestamping previously added triple");
-			try (RepositoryConnection connection = repo.getConnection()) {
-				connection.begin();
-				connection.prepareUpdate(updateString).execute();
-				connection.commit();
-				getLogger().info("Triple timestamped");
-			}
-			updateString = null;
-			return null;
-		}
-		return bindingSet;
-	}
-
-	@Override
-	public Iterator<BindingSet> flush(RequestContext requestContext) {
-		// Get the BindingSet we created in the Preprocess phase and return it.
-		// This will be returned as the query result.
-		BindingSet result = (BindingSet) ((RequestContextImpl) requestContext).getAttribute("bindings");
-		return new SingletonIterator<>(result);
-	}
-
-	private Literal createDateTimeLiteral() {
-		// Create a literal for the current timestamp.
-		Calendar calendar = Calendar.getInstance();
-		calendar.add(Calendar.HOUR, timeOffsetHrs);
-
-		return SimpleValueFactory.getInstance().createLiteral(calendar.getTime());
-	}
-
-
 	@Override
 	public boolean statementAdded(long subject, long predicate, long object, long context, boolean isAddition, PluginConnection pluginConnection) {
 		String s = pluginConnection.getEntities().get(subject).stringValue();
@@ -153,12 +72,15 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 		String p = pluginConnection.getEntities().get(object).stringValue();
 		getLogger().info("Statement added:" + s + " " + p + " " + o + " within context:" + context);
 
-		updateString = String.format("insert { << %s %s %s >> " +
-				"<http://example.com/metadata/versioning#valid_from> ?timestamp } " +
-				"where {BIND(<http://www.w3.org/2001/XMLSchema#dateTime>(NOW()) AS ?timestamp) }",
-				entityToString(pluginConnection.getEntities().get(subject)),
-				entityToString(pluginConnection.getEntities().get(predicate)),
-				entityToString(pluginConnection.getEntities().get(object)));
+		if (!triplesTimestamped) {
+			updateString = String.format("insert { << %s %s %s >> " +
+							"<http://example.com/metadata/versioning#valid_from> ?timestamp } " +
+							"where {BIND(<http://www.w3.org/2001/XMLSchema#dateTime>(NOW()) AS ?timestamp) }",
+					entityToString(pluginConnection.getEntities().get(subject)),
+					entityToString(pluginConnection.getEntities().get(predicate)),
+					entityToString(pluginConnection.getEntities().get(object)));
+			//updateString = "insert data {<http://example.com/s/s1> <http://example.com/p/p1> <http://example.com/o/o1> }";
+		}
 
 		return false;
 	}
@@ -181,5 +103,42 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 			return value.toString();
 		getLogger().error("The entity's type is not support. It is none of: IRI, literal, BNode");
 		return null;
+	}
+
+	@Override
+	public void transactionStarted(PluginConnection pluginConnection) {
+		getLogger().info("transactionStarted");
+	}
+
+	@Override
+	public void transactionCommit(PluginConnection pluginConnection) {
+		getLogger().info("transactionCommit");
+
+	}
+
+	@Override
+	public void transactionCompleted(PluginConnection pluginConnection) {
+		getLogger().info("transactionCompleted");
+		if (updateString != null) {
+			getLogger().info("Timestamping previously added triple");
+			try (RepositoryConnection connection = repo.getConnection()) {
+				triplesTimestamped = true;
+				repo.init();
+				connection.begin();
+				connection.prepareUpdate(updateString).execute();
+				connection.commit();
+				getLogger().info("Triple timestamped");
+			} finally {
+				updateString = null;
+				triplesTimestamped = false;
+			}
+		}
+
+	}
+
+	@Override
+	public void transactionAborted(PluginConnection pluginConnection) {
+		getLogger().info("transactionAborted");
+
 	}
 }
