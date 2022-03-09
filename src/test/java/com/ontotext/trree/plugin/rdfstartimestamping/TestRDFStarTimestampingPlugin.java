@@ -24,45 +24,25 @@ public class TestRDFStarTimestampingPlugin extends SingleRepositoryFunctionalTes
     }
 
     @Test
-    public void testExample() {
-        try (RepositoryConnection connection = getRepository().getConnection()) {
-            // The 'from <http://example.com/time>' is how we request this to be processed by the plugin.
-            TupleQuery query = connection.prepareTupleQuery("select * from <http://example.com/time> { ?s ?p ?o }");
-            /*assertQueryWithTimeOffset(query, 0);
-            setPluginTimeOffset(10);
-            assertQueryWithTimeOffset(query, 10);
-            setPluginTimeOffset(-10);
-            assertQueryWithTimeOffset(query, 0);*/
-        }
-    }
-
-    private void assertQueryWithTimeOffset(TupleQuery query, int numHours) {
-        // Expected time adjusted for offset (hours converted to milliseconds)
-        long timeInMillisFromSystem = System.currentTimeMillis() + numHours * 3_600_000;
-        try (TupleQueryResult result = query.evaluate()) {
-            assertTrue("Must have at least one row in the result", result.hasNext());
-            BindingSet bindings = result.next();
-            assertTrue("Must have a binding for 's'", bindings.hasBinding("s"));
-            assertTrue("Must have a binding for 'p'", bindings.hasBinding("p"));
-            assertTrue("Must have a binding for 'o'", bindings.hasBinding("o"));
-            assertEquals("Must have only 3 bindings", 3, bindings.getBindingNames().size());
-            for (String bindingName : result.getBindingNames()) {
-                Value time = bindings.getValue(bindingName);
-                assertTrue("Returned value must be a literal", time instanceof Literal);
-                long timeInMillisFromQuery = ((Literal) time).calendarValue().toGregorianCalendar().getTimeInMillis();
-                assertEquals("Time must be a close match", timeInMillisFromSystem, timeInMillisFromQuery, 100);
-            }
-            assertFalse("There must be a single row in the result", result.hasNext());
-        }
-    }
-
-    private void setPluginTimeOffset(int numHours) {
+    public void testInsertSingleTripleVersioning() {
+        String updateString;
         try (RepositoryConnection connection = getRepository().getConnection()) {
             connection.begin();
-            String updateString = String.format("insert data { <http://example.com/time> <%s> %d }",
-                    numHours > 0 ? "http://example.com/goInFuture" : "http://example.com/goInPast", Math.abs(numHours));
+            updateString = "insert data { graph <http://example.com/testGraph> {<http://example.com/s/v1> <http://example.com/p/v2> <http://example.com/o/v3> }}";
             connection.prepareUpdate(updateString).execute();
             connection.commit();
+
+            TupleQuery query = connection.prepareTupleQuery("select * from <http://example.com/testGraph> { ?s ?p ?o }");
+            try (TupleQueryResult result = query.evaluate()) {
+                assertTrue("Must have at least one row in the result", result.hasNext());
+                while (result.hasNext()) {
+                    BindingSet bindings = result.next();
+                    for (String bindingName : result.getBindingNames()) {
+                        System.out.println(bindingName + ": " + bindings.getValue(bindingName));
+                    }
+                }
+            }
         }
     }
+
 }

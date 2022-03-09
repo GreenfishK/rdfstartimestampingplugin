@@ -79,7 +79,7 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 					entityToString(pluginConnection.getEntities().get(subject)),
 					entityToString(pluginConnection.getEntities().get(predicate)),
 					entityToString(pluginConnection.getEntities().get(object)));
-			//updateString = "insert data {<http://example.com/s/s1> <http://example.com/p/p1> <http://example.com/o/o1> }";
+			getLogger().info(updateString);
 		}
 
 		return false;
