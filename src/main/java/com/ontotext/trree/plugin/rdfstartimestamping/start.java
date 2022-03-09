@@ -14,7 +14,7 @@ public class start {
         try (RepositoryConnection connection = repo.getConnection()) {
             repo.init();
             connection.begin();
-            updateString = "insert data {<http://example.com/s/s1111> <http://example.com/p/p1111> <http://example.com/o/o1111> }";
+            updateString = "insert data { graph <http://example.com/testGraph> {<http://example.com/s/v1> <http://example.com/p/v2> <http://example.com/o/v3> }}";
             connection.prepareUpdate(updateString).execute();
             connection.commit();
         }

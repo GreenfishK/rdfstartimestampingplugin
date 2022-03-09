@@ -88,20 +88,25 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 	@Override
 	public void transactionCompleted(PluginConnection pluginConnection) {
 		getLogger().info("transactionCompleted");
-		if (updateString != null) {
-			getLogger().info("Timestamping previously added triple");
-			try (RepositoryConnection connection = repo.getConnection()) {
-				triplesTimestamped = true;
-				repo.init();
-				connection.begin();
-				connection.prepareUpdate(updateString).execute();
-				connection.commit();
-				getLogger().info("Triple timestamped");
-			} finally {
-				updateString = null;
-				triplesTimestamped = false;
+
+			if (updateString != null) {
+				getLogger().info("Timestamping previously added triple");
+				try (RepositoryConnection connection = repo.getConnection()) {
+					triplesTimestamped = true;
+					repo.init();
+					Thread newThread = new Thread(() -> {
+						connection.begin();
+						connection.prepareUpdate(updateString).execute();
+						connection.commit();
+						getLogger().info("Triple timestamped");
+					});
+					newThread.start();
+				} finally {
+					updateString = null;
+					triplesTimestamped = false;
+				}
 			}
-		}
+
 
 	}
 
