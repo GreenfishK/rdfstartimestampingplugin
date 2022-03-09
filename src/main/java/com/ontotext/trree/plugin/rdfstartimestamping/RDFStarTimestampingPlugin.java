@@ -1,22 +1,12 @@
 package com.ontotext.trree.plugin.rdfstartimestamping;
 
 import com.ontotext.trree.sdk.*;
-import com.ontotext.trree.sdk.impl.RequestContextImpl;
 import org.eclipse.rdf4j.model.IRI;
-import org.eclipse.rdf4j.model.Literal;
 import org.eclipse.rdf4j.model.Value;
 import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
-import org.eclipse.rdf4j.query.BindingSet;
-import org.eclipse.rdf4j.query.Dataset;
-import org.eclipse.rdf4j.query.impl.MapBindingSet;
 import org.eclipse.rdf4j.repository.Repository;
 import org.eclipse.rdf4j.repository.RepositoryConnection;
 import org.eclipse.rdf4j.repository.sparql.SPARQLRepository;
-import org.eclipse.rdf4j.util.iterators.SingletonIterator;
-
-import javax.naming.Context;
-import java.util.Calendar;
-import java.util.Iterator;
 
 public class RDFStarTimestampingPlugin extends PluginBase implements StatementListener, PluginTransactionListener{
 
@@ -26,20 +16,10 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 	private static final String GO_FUTURE_PREDICATE = PREFIX + "goInFuture";
 	private static final String GO_PAST_PREDICATE = PREFIX + "goInPast";
 
-	private int timeOffsetHrs = 0;
-
-	private IRI timeIri;
-	private IRI defaultGraphIri;
-
-	// IDs of the entities in the entity pool
-	private long timeID;
-	private long goFutureID;
-	private long goPastID;
-
-	private String sparqlEndpoint = "http://ThinkPad-T14s-FK:7200/repositories/test_timestamping/statements";
-	private Repository repo = new SPARQLRepository(this.sparqlEndpoint);
+	private final Repository repo = new SPARQLRepository("http://ThinkPad-T14s-FK:7200/repositories/test_timestamping/statements");
 	private String updateString;
 	private boolean triplesTimestamped = false;
+
 
 	// Service interface methods
 	@Override
@@ -51,17 +31,6 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 	@Override
 	public void initialize(InitReason reason, PluginConnection pluginConnection) {
 		// Create IRIs to represent the entities
-		timeIri = SimpleValueFactory.getInstance().createIRI(TIME_PREDICATE);
-		IRI goFutureIRI = SimpleValueFactory.getInstance().createIRI(GO_FUTURE_PREDICATE);
-		IRI goPastIRI = SimpleValueFactory.getInstance().createIRI(GO_PAST_PREDICATE);
-
-		// Put the entities in the entity pool using the SYSTEM scope
-		timeID = pluginConnection.getEntities().put(timeIri, Entities.Scope.SYSTEM);
-		goFutureID = pluginConnection.getEntities().put(goFutureIRI, Entities.Scope.SYSTEM);
-		goPastID = pluginConnection.getEntities().put(goPastIRI, Entities.Scope.SYSTEM);
-
-		defaultGraphIri = SimpleValueFactory.getInstance().createIRI("<http://www.ontotext.com/explicit>");
-
 		getLogger().info("rdf-star-timestamping plugin initialized!");
 	}
 
