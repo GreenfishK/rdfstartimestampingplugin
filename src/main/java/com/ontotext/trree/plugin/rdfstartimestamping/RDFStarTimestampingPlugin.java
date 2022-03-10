@@ -44,8 +44,8 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 	public void initialize(InitReason reason, PluginConnection pluginConnection) {
 		// Create IRIs to represent the entities
 		getLogger().info("rdf-star-timestamping plugin initialized!");
-		this.getEndpoint = "http://localhost:7200/repositories/test_timestamping";
-		this.postEndpoint = "http://localhost:7200/repositories/test_timestamping/statements";
+		this.getEndpoint = "http://localhost:7200/repositories/testTimestamping";
+		this.postEndpoint = "http://localhost:7200/repositories/testTimestamping/update";
 	}
 
 	@Override
@@ -59,11 +59,8 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 		if (!triplesTimestamped) {
 			URL res = getClass().getClassLoader().getResource("timestampedInsertTemplate");
 			assert res != null;
-			getLogger().info(res.getPath());
-
 			updateString = MessageFormat.format(readAllBytes("timestampedInsertTemplate"),
 					entityToString(c), entityToString(s), entityToString(p), entityToString(o));
-			getLogger().info(updateString);
 		}
 
 		return false;

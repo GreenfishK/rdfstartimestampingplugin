@@ -1,0 +1,13 @@
+# RDF4J configuration template for a GraphDB Free repository
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#>.
+@prefix rep: <http://www.openrdf.org/config/repository#>.
+@prefix sparql: <http://www.openrdf.org/config/repository/sparql#>.
+
+[] a rep:Repository ;
+    rep:repositoryID "testTimestamping" ;
+    rdfs:label "Repository for evaluation of Sparql* queries against GraphDB" ;
+    rep:repositoryImpl [
+        rep:repositoryType "openrdf:SPARQLRepository" ;
+        sparql:query-endpoint <http://localhost:7200/repositories/testTimestamping> ;
+        sparql:update-endpoint <http://localhost:7200/repositories/testTimestamping/update> ;
+    ].
