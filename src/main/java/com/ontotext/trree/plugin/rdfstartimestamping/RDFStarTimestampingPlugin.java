@@ -43,16 +43,17 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 		Value s = pluginConnection.getEntities().get(subject);
 		Value o = pluginConnection.getEntities().get(predicate);
 		Value p = pluginConnection.getEntities().get(object);
-		getLogger().info("Statement added:" + s + " " + p + " " + o + " within context:" + context);
+		Value c = pluginConnection.getEntities().get(context);
+		getLogger().info("Statement added:" + s + " " + p + " " + o + " within context:" + c);
 
 		if (!triplesTimestamped) {
-			updateString = String.format("insert { << %s %s %s >> " +
-							"<http://example.com/metadata/versioning#valid_from> ?timestamp } " +
+			updateString = String.format("insert {graph %s {<< %s %s %s >> " +
+							"<http://example.com/metadata/versioning#valid_from> ?timestamp }} " +
 							"where {BIND(<http://www.w3.org/2001/XMLSchema#dateTime>(NOW()) AS ?timestamp) }",
+					entityToString(c),
 					entityToString(s),
 					entityToString(o),
 					entityToString(p));
-			getLogger().info(updateString);
 		}
 
 		return false;
@@ -87,30 +88,33 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 	public void transactionCommit(PluginConnection pluginConnection) {
 		getLogger().info("transactionCommit");
 
+		if (updateString != null && !triplesTimestamped) {
+			Thread newThread = new Thread(() -> {
+				getLogger().info("Timestamping previously added triple");
+				repo = new SPARQLRepository(postEndpoint);
+				try (RepositoryConnection connection = repo.getConnection()) {
+					triplesTimestamped = true;
+					repo.init();
+					connection.begin();
+					getLogger().info(updateString);
+					connection.prepareUpdate(updateString).execute();
+					connection.commit();
+					getLogger().info("Triple timestamped");
+
+				} finally {
+					updateString = null;
+					triplesTimestamped = false;
+				}
+			});
+			newThread.start();
+
+		}
 	}
 
 	@Override
 	public void transactionCompleted(PluginConnection pluginConnection) {
 		getLogger().info("transactionCompleted");
 
-			if (updateString != null) {
-				getLogger().info("Timestamping previously added triple");
-				repo = new SPARQLRepository(postEndpoint);
-				try (RepositoryConnection connection = repo.getConnection()) {
-					triplesTimestamped = true;
-					repo.init();
-					Thread newThread = new Thread(() -> {
-						connection.begin();
-						connection.prepareUpdate(updateString).execute();
-						connection.commit();
-						getLogger().info("Triple timestamped");
-					});
-					newThread.start();
-				} finally {
-					updateString = null;
-					triplesTimestamped = false;
-				}
-			}
 	}
 
 	@Override
