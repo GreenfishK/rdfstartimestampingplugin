@@ -16,7 +16,7 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 	private static final String GO_FUTURE_PREDICATE = PREFIX + "goInFuture";
 	private static final String GO_PAST_PREDICATE = PREFIX + "goInPast";
 
-	private final Repository repo = new SPARQLRepository("http://ThinkPad-T14s-FK:7200/repositories/test_timestamping/statements");
+	private final Repository repo = new SPARQLRepository("http://localhost:7200/repositories/test_timestamping/statements");
 	private String updateString;
 	private boolean triplesTimestamped = false;
 
@@ -41,7 +41,7 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 		String p = pluginConnection.getEntities().get(object).stringValue();
 		getLogger().info("Statement added:" + s + " " + p + " " + o + " within context:" + context);
 
-		if (!triplesTimestamped) {
+		/*if (!triplesTimestamped) {
 			updateString = String.format("insert { << %s %s %s >> " +
 							"<http://example.com/metadata/versioning#valid_from> ?timestamp } " +
 							"where {BIND(<http://www.w3.org/2001/XMLSchema#dateTime>(NOW()) AS ?timestamp) }",
@@ -49,7 +49,7 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 					entityToString(pluginConnection.getEntities().get(predicate)),
 					entityToString(pluginConnection.getEntities().get(object)));
 			getLogger().info(updateString);
-		}
+		}*/
 
 		return false;
 	}
@@ -89,7 +89,7 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 	public void transactionCompleted(PluginConnection pluginConnection) {
 		getLogger().info("transactionCompleted");
 
-			if (updateString != null) {
+			/*if (updateString != null) {
 				getLogger().info("Timestamping previously added triple");
 				try (RepositoryConnection connection = repo.getConnection()) {
 					triplesTimestamped = true;
@@ -105,9 +105,7 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 					updateString = null;
 					triplesTimestamped = false;
 				}
-			}
-
-
+			}*/
 	}
 
 	@Override
