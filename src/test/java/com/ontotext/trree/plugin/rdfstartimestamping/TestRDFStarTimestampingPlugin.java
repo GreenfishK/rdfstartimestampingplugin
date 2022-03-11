@@ -1,5 +1,11 @@
 package com.ontotext.trree.plugin.rdfstartimestamping;
 
+import org.apache.http.client.HttpClient;
+import org.eclipse.rdf4j.http.client.HttpClientSessionManager;
+import org.eclipse.rdf4j.http.client.RDF4JProtocolSession;
+import org.eclipse.rdf4j.http.client.SPARQLProtocolSession;
+import org.eclipse.rdf4j.repository.Repository;
+import org.eclipse.rdf4j.repository.sparql.SPARQLRepository;
 import org.eclipse.rdf4j.model.Model;
 import org.eclipse.rdf4j.model.Resource;
 import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
@@ -9,14 +15,11 @@ import org.eclipse.rdf4j.query.BindingSet;
 import org.eclipse.rdf4j.query.BooleanQuery;
 import org.eclipse.rdf4j.query.TupleQuery;
 import org.eclipse.rdf4j.query.TupleQueryResult;
-import org.eclipse.rdf4j.repository.Repository;
 import org.eclipse.rdf4j.repository.RepositoryConnection;
 import org.eclipse.rdf4j.repository.RepositoryException;
-import org.eclipse.rdf4j.repository.config.RepositoryConfig;
-import org.eclipse.rdf4j.repository.config.RepositoryConfigException;
-import org.eclipse.rdf4j.repository.config.RepositoryConfigSchema;
+import org.eclipse.rdf4j.repository.config.*;
 import org.eclipse.rdf4j.repository.manager.LocalRepositoryManager;
-import org.eclipse.rdf4j.repository.sparql.SPARQLRepository;
+import org.eclipse.rdf4j.repository.sail.SailRepository;
 import org.eclipse.rdf4j.rio.RDFFormat;
 import org.eclipse.rdf4j.rio.RDFHandlerException;
 import org.eclipse.rdf4j.rio.RDFParseException;
@@ -60,8 +63,11 @@ public class TestRDFStarTimestampingPlugin  {
             repositoryManager.addRepositoryConfig(repositoryConfig);
 
             //Initialize repo
-            Repository repo = repositoryManager.getRepository("testTimestamping");
+            SailRepository repo = (SailRepository) repositoryManager.getRepository("testTimestamping");
             repo.init();
+
+            //.getHttpClientSessionManager().createSPARQLProtocolSession("http://localhost:7200/repositories/testTimestamping",
+                  //  "http://localhost:7200/repositories/testTimestamping/statements");
 
             //Establish connection to repo
             embeddedRepoCon = repo.getConnection();
@@ -114,7 +120,7 @@ public class TestRDFStarTimestampingPlugin  {
         TupleQuery query = embeddedRepoCon.prepareTupleQuery("select * from <http://example.com/testGraph> { ?s ?p ?o }");
         try (TupleQueryResult result = query.evaluate()) {
             assertTrue("Must have three triples - one data and two nested triples in the result", result.hasNext());
-            System.out.println(result.stream().count());
+            assertEquals(3, result.stream().count());
             while (result.hasNext()) {
                 BindingSet bindings = result.next();
                 for (String bindingName : result.getBindingNames()) {
@@ -123,6 +129,32 @@ public class TestRDFStarTimestampingPlugin  {
             }
         }
     }
+
+    @Test
+    public void insertMultipleTriplesVersioningTest() {
+        fail("not yet implemented");
+    }
+
+    @Test
+    public void deleteSingleTripleVersioningTest() {
+        fail("not yet implemented");
+    }
+
+    @Test
+    public void deleteMultipleTripleVersioningTest() {
+        fail("not yet implemented");
+    }
+
+    @Test
+    public void queryLiveDataTest() {
+        fail("not yet implemented");
+    }
+
+    @Test
+    public void queryHistoryDataTest() {
+        fail("not yet implemented");
+    }
+
 
     @After
     public void clearTestGraph() {

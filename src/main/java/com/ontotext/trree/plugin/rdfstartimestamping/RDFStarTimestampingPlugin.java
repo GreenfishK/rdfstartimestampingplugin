@@ -20,6 +20,7 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.text.MessageFormat;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.stream.Collectors;
 
@@ -29,8 +30,8 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 	private String getEndpoint;
 	private String postEndpoint;
 	private Repository repo;
-	private String updateString;
-	private boolean triplesTimestamped = false;
+	private ArrayList<String> updateStrings;
+	private boolean triplesTimestamped;
 
 
 	// Service interface methods
@@ -45,7 +46,9 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 		// Create IRIs to represent the entities
 		getLogger().info("rdf-star-timestamping plugin initialized!");
 		this.getEndpoint = "http://localhost:7200/repositories/testTimestamping";
-		this.postEndpoint = "http://localhost:7200/repositories/testTimestamping/update";
+		this.postEndpoint = "http://localhost:7200/repositories/testTimestamping/statements";
+		updateStrings = new ArrayList<>();
+		triplesTimestamped = false;
 	}
 
 	@Override
@@ -59,8 +62,8 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 		if (!triplesTimestamped) {
 			URL res = getClass().getClassLoader().getResource("timestampedInsertTemplate");
 			assert res != null;
-			updateString = MessageFormat.format(readAllBytes("timestampedInsertTemplate"),
-					entityToString(c), entityToString(s), entityToString(p), entityToString(o));
+			updateStrings.add(MessageFormat.format(readAllBytes("timestampedInsertTemplate"),
+					entityToString(c), entityToString(s), entityToString(p), entityToString(o)));
 		}
 
 		return false;
@@ -109,7 +112,7 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 	public void transactionCommit(PluginConnection pluginConnection) {
 		getLogger().info("transactionCommit");
 
-		if (updateString != null && !triplesTimestamped) {
+		if (!updateStrings.isEmpty() && !triplesTimestamped) {
 			Thread newThread = new Thread(() -> {
 				getLogger().info("Timestamping previously added triple");
 				repo = new SPARQLRepository(postEndpoint);
@@ -117,13 +120,13 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 					triplesTimestamped = true;
 					repo.init();
 					connection.begin();
-					getLogger().info(updateString);
-					connection.prepareUpdate(updateString).execute();
+					for (String updateString : updateStrings)
+						connection.prepareUpdate(updateString).execute();
 					connection.commit();
 					getLogger().info("Triple timestamped");
 
 				} finally {
-					updateString = null;
+					updateStrings.clear();
 					triplesTimestamped = false;
 				}
 			});
