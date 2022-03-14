@@ -1,14 +1,10 @@
+# Context: {0}
 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
 delete '{'
-    graph {0} '{'
-        <<{1} {2} {3}>> <http://example.com/metadata/versioning#valid_until> "9999-12-31T00:00:00.000+00:00"^^xsd:dateTime .
-
-    '}'
+    <<{1} {2} {3}>> <http://example.com/metadata/versioning#valid_until> "9999-12-31T00:00:00.000+00:00"^^xsd:dateTime .
 '}'
 insert '{'
-    graph {0} '{'
-        <<{1} {2} {3}>> <http://example.com/metadata/versioning#valid_until> ?timestamp .
-    '}
-}' where '{'
+    <<{1} {2} {3}>> <http://example.com/metadata/versioning#valid_until> ?timestamp .
+'}' where '{'
     BIND(<http://www.w3.org/2001/XMLSchema#dateTime>(NOW()) AS ?timestamp)
 '}'

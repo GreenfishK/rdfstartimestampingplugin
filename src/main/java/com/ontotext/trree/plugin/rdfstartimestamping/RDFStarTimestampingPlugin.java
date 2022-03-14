@@ -19,6 +19,7 @@ import java.nio.file.Paths;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 public class RDFStarTimestampingPlugin extends PluginBase implements StatementListener, PluginTransactionListener{
@@ -59,8 +60,17 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 		if (!triplesTimestamped) {
 			URL res = getClass().getClassLoader().getResource("timestampedInsertTemplate");
 			assert res != null;
-			updateStrings.add(MessageFormat.format(readAllBytes("timestampedInsertTemplate"),
+			String template = "";
+			if (Objects.equals(c, null))
+				template = "timestampedInsertTemplate";
+			 else
+				template = "timestampedInsertWithContextTemplate";
+
+			updateStrings.add(MessageFormat.format(readAllBytes(template),
 					entityToString(c), entityToString(s), entityToString(p), entityToString(o)));
+			getLogger().info(MessageFormat.format(readAllBytes(template),
+					entityToString(c), entityToString(s), entityToString(p), entityToString(o)));
+
 		}
 
 		return false;
@@ -77,8 +87,17 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 		if (!triplesTimestamped) {
 			URL res = getClass().getClassLoader().getResource("timestampedDeleteTemplate");
 			assert res != null;
-			updateStrings.add(MessageFormat.format(readAllBytes("timestampedDeleteTemplate"),
+			String template = "";
+			if (Objects.equals(c, null))
+				template = "timestampedDeleteTemplate";
+			else
+				template = "timestampedDeleteWithContextTemplate";
+
+			updateStrings.add(MessageFormat.format(readAllBytes(template),
 					entityToString(c), entityToString(s), entityToString(p), entityToString(o)));
+			getLogger().info(MessageFormat.format(readAllBytes(template),
+					entityToString(c), entityToString(s), entityToString(p), entityToString(o)));
+
 		}
 
 		return false;
@@ -96,7 +115,6 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 			Value p = ((SimpleTriple) value).getPredicate();
 			Value o = ((SimpleTriple) value).getObject();
 			return "<<" + entityToString(s) + " " + entityToString(p) + " " + entityToString(o) + ">>";
-
 		}
 		getLogger().error("The entity's type is not support. It is none of: IRI, literal, BNode");
 		return null;
