@@ -202,6 +202,11 @@ public class TestRDFStarTimestampingPlugin  {
     }
 
     @Test
+    public void deleteAllTriplesVersioningTest() {
+        fail("not yet implemented");
+    }
+
+    @Test
     public void queryLiveDataTest() {
         fail("not yet implemented");
     }
