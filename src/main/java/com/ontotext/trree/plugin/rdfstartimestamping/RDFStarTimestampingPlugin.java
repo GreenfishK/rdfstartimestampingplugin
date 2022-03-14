@@ -7,7 +7,6 @@ import org.eclipse.rdf4j.model.impl.*;
 import org.eclipse.rdf4j.repository.Repository;
 import org.eclipse.rdf4j.repository.RepositoryConnection;
 import org.eclipse.rdf4j.repository.sparql.SPARQLRepository;
-import org.w3c.dom.css.CSSImportRule;
 
 import java.io.BufferedReader;
 import java.io.IOException;
