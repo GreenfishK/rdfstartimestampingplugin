@@ -3,13 +3,11 @@ package com.ontotext.trree.plugin.rdfstartimestamping;
 import com.ontotext.trree.sdk.*;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Value;
-import org.eclipse.rdf4j.model.impl.SimpleBNode;
-import org.eclipse.rdf4j.model.impl.SimpleIRI;
-import org.eclipse.rdf4j.model.impl.SimpleLiteral;
-import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
+import org.eclipse.rdf4j.model.impl.*;
 import org.eclipse.rdf4j.repository.Repository;
 import org.eclipse.rdf4j.repository.RepositoryConnection;
 import org.eclipse.rdf4j.repository.sparql.SPARQLRepository;
+import org.w3c.dom.css.CSSImportRule;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -71,10 +69,19 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 
 	@Override
 	public boolean statementRemoved(long subject, long predicate, long object, long context, boolean isAddition, PluginConnection pluginConnection) {
-		String s = pluginConnection.getEntities().get(subject).stringValue();
-		String o = pluginConnection.getEntities().get(predicate).stringValue();
-		String p = pluginConnection.getEntities().get(object).stringValue();
-		getLogger().info("Statement deleted:" + s + " " + p + " " + o + " from context:" + context);
+		Value s = pluginConnection.getEntities().get(subject);
+		Value p = pluginConnection.getEntities().get(predicate);
+		Value o = pluginConnection.getEntities().get(object);
+		Value c = pluginConnection.getEntities().get(context);
+		getLogger().info("Statement deleted:" + s + " " + p + " " + o + " within context:" + c);
+
+		if (!triplesTimestamped) {
+			URL res = getClass().getClassLoader().getResource("timestampedDeleteTemplate");
+			assert res != null;
+			updateStrings.add(MessageFormat.format(readAllBytes("timestampedDeleteTemplate"),
+					entityToString(c), entityToString(s), entityToString(p), entityToString(o)));
+		}
+
 		return false;
 	}
 
@@ -85,6 +92,13 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 			return value.toString();
 		if (value instanceof SimpleBNode)
 			return value.toString();
+		if (value instanceof SimpleTriple) {
+			Value s = ((SimpleTriple) value).getSubject();
+			Value p = ((SimpleTriple) value).getPredicate();
+			Value o = ((SimpleTriple) value).getObject();
+			return "<<" + entityToString(s) + " " + entityToString(p) + " " + entityToString(o) + ">>";
+
+		}
 		getLogger().error("The entity's type is not support. It is none of: IRI, literal, BNode");
 		return null;
 	}
