@@ -1,13 +1,13 @@
 package com.ontotext.trree.plugin.rdfstartimestamping;
 
 import com.ontotext.trree.sdk.*;
-import org.eclipse.rdf4j.model.IRI;
-import org.eclipse.rdf4j.model.Value;
+import org.eclipse.rdf4j.model.*;
 import org.eclipse.rdf4j.model.impl.*;
 import org.eclipse.rdf4j.repository.Repository;
 import org.eclipse.rdf4j.repository.RepositoryConnection;
 import org.eclipse.rdf4j.repository.sparql.SPARQLRepository;
 
+import javax.management.StringValueExp;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -22,7 +22,7 @@ import java.util.Arrays;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-public class RDFStarTimestampingPlugin extends PluginBase implements StatementListener, PluginTransactionListener{
+public class RDFStarTimestampingPlugin extends PluginBase implements StatementListener, PluginTransactionListener, ContextUpdateHandler {
 
 	private static final String PREFIX = "http://example.com/";
 	private String getEndpoint;
@@ -30,6 +30,38 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 	private Repository repo;
 	private ArrayList<String> updateStrings;
 	private boolean triplesTimestamped;
+	private ArrayList<Triple> deleteRequestTriples;
+	private boolean anyDeleteRequestMatch;
+
+	private class Triple {
+		private Resource subject;
+		private IRI predicate;
+		private Value object;
+		private Resource context;
+
+		public Triple(Resource subject, IRI predicate, Value object, Resource context) {
+			this.subject = subject;
+			this.predicate = predicate;
+			this.object = object;
+			this.context = context;
+		}
+
+		public Resource getSubject() {
+			return this.subject;
+		}
+
+		public IRI getPredicate() {
+			return this.predicate;
+		}
+
+		public Value getObject() {
+			return this.object;
+		}
+
+		public Resource getContext() {
+			return this.context;
+		}
+	}
 
 
 	// Service interface methods
@@ -46,7 +78,29 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 		this.getEndpoint = "http://localhost:7200/repositories/testTimestamping";
 		this.postEndpoint = "http://localhost:7200/repositories/testTimestamping/statements";
 		updateStrings = new ArrayList<>();
+		deleteRequestTriples = new ArrayList<>();
 		triplesTimestamped = false;
+		anyDeleteRequestMatch = false;
+
+	}
+
+	@Override
+	public Resource[] getUpdateContexts() {
+		getLogger().info("getUpdateContexts");
+		Resource[] res = new Resource[1];
+		//TODO: add other contexts from db (apart from the default context/no context).
+		res[0] = () -> "";
+		return res;
+	}
+
+	@Override
+	public void handleContextUpdate(Resource subject, IRI predicate, Value object, Resource context, boolean b, PluginConnection pluginConnection) {
+		getLogger().info("Handling update");
+		if (b) getLogger().info("Adding triple");
+		else {
+			getLogger().info("Deleting triple");
+			deleteRequestTriples.add(new Triple(subject, predicate, object, null));
+		}
 	}
 
 	@Override
@@ -82,24 +136,9 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 		Value p = pluginConnection.getEntities().get(predicate);
 		Value o = pluginConnection.getEntities().get(object);
 		Value c = pluginConnection.getEntities().get(context);
-		getLogger().info("Statement deleted:" + s + " " + p + " " + o + " within context:" + c);
+		getLogger().info("Statement removed:" + s + " " + p + " " + o + " within context:" + c);
 
-		if (!triplesTimestamped) {
-			URL res = getClass().getClassLoader().getResource("timestampedDeleteTemplate");
-			assert res != null;
-			String template = "";
-			if (Objects.equals(c, null))
-				template = "timestampedDeleteTemplate";
-			else
-				template = "timestampedDeleteWithContextTemplate";
-
-			updateStrings.add(MessageFormat.format(readAllBytes(template),
-					entityToString(c), entityToString(s), entityToString(p), entityToString(o)));
-			getLogger().info(MessageFormat.format(readAllBytes(template),
-					entityToString(c), entityToString(s), entityToString(p), entityToString(o)));
-
-		}
-
+		anyDeleteRequestMatch = true;
 		return false;
 	}
 
@@ -116,7 +155,10 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 			Value o = ((SimpleTriple) value).getObject();
 			return "<<" + entityToString(s) + " " + entityToString(p) + " " + entityToString(o) + ">>";
 		}
-		getLogger().error("The entity's type is not support. It is none of: IRI, literal, BNode");
+		if (value instanceof Resource) {
+			return "<" + value + ">";
+		}
+		getLogger().error("The entity's type is not support. It is none of: IRI, literal, BNode, Triple");
 		return null;
 	}
 
@@ -143,6 +185,31 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 	public void transactionCommit(PluginConnection pluginConnection) {
 		getLogger().info("transactionCommit");
 
+		if(!anyDeleteRequestMatch) {
+			getLogger().info("Preparing triples to outdate");
+			for (Triple t: deleteRequestTriples) {
+				Value c = t.getContext();
+				Value s = t.getSubject();
+				Value p = t.getPredicate();
+				Value o = t.getObject();
+				getLogger().info(s.stringValue() + " " + p.stringValue() + " " + o.stringValue());
+
+				if (!triplesTimestamped) {
+					URL res = getClass().getClassLoader().getResource("timestampedDeleteTemplate");
+					assert res != null;
+					String template = "";
+					if (Objects.equals(c, null))
+						template = "timestampedDeleteTemplate";
+					else
+						template = "timestampedDeleteWithContextTemplate";
+
+					updateStrings.add(MessageFormat.format(readAllBytes(template),
+							entityToString(c), entityToString(s), entityToString(p), entityToString(o)));
+
+				}
+			}
+		}
+
 		if (!updateStrings.isEmpty() && !triplesTimestamped) {
 			Thread newThread = new Thread(() -> {
 				getLogger().info("Timestamping previously added triple");
@@ -162,13 +229,15 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 				}
 			});
 			newThread.start();
-
 		}
+
+
 	}
 
 	@Override
 	public void transactionCompleted(PluginConnection pluginConnection) {
 		getLogger().info("transactionCompleted");
+		anyDeleteRequestMatch=false;
 
 	}
 
@@ -177,4 +246,6 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 		getLogger().info("transactionAborted");
 
 	}
+
+
 }
