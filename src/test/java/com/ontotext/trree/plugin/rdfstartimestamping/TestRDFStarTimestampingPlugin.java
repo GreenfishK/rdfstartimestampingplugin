@@ -111,10 +111,12 @@ public class TestRDFStarTimestampingPlugin {
         sparqlRepoConnection.prepareUpdate(updateString).execute();
         sparqlRepoConnection.commit();
 
+        //TODO: wait for plugin to insert triples
+
         TupleQuery query = sparqlRepoConnection.prepareTupleQuery("select * from <http://example.com/testGraph> { ?s ?p ?o }");
         try (TupleQueryResult result = query.evaluate()) {
-            assertTrue("Must have three triples - one data and two nested triples in the result", result.hasNext());
-            assertEquals(3, result.stream().count());
+            assertTrue("Must have two nested triples in the result", result.hasNext());
+            assertEquals(2, result.stream().count());
             while (result.hasNext()) {
                 BindingSet bindings = result.next();
                 for (String bindingName : result.getBindingNames()) {
