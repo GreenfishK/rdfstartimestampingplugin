@@ -54,10 +54,10 @@ public class TestRDFStarTimestampingPlugin  {
     public static void init() {
         try {
             //Repo directory management
-            File baseDir = new File("target","GraphDB");
+            File baseDir = new File(System.getProperty("user.home") + "/.graphdb/data");
             if (!baseDir.exists())
                 baseDir.mkdirs();
-            File repoDirectory = new File("target/GraphDB/repositories/testTimestamping");
+            File repoDirectory = new File(System.getProperty("user.home") + "/.graphdb/data/repositories/testTimestamping");
             if(repoDirectory.exists()) {
                 Files.walk(repoDirectory.toPath())
                         .sorted(Comparator.reverseOrder())
@@ -70,10 +70,6 @@ public class TestRDFStarTimestampingPlugin  {
             repositoryManager = new LocalRepositoryManager(baseDir);
             repositoryManager.init();
 
-            //create remote repo
-            //remoteRepoManager = new RemoteRepositoryManager("http://localhost:7200/repositories/testTimestamping");
-            //remoteRepoManager.init();
-
             //Add repository config to local repository manager
             InputStream config = TestRDFStarTimestampingPlugin.class.getResourceAsStream("/repo-defaults.ttl");
             Model repo_config_graph = Rio.parse(config, "", RDFFormat.TURTLE);
@@ -81,27 +77,13 @@ public class TestRDFStarTimestampingPlugin  {
             RepositoryConfig repositoryConfig = RepositoryConfig.create(repo_config_graph, repositoryNode);
             repositoryManager.addRepositoryConfig(repositoryConfig);
 
-            //Add repository config ro remote repository manager
-            //remoteRepoManager.addRepositoryConfig(repositoryConfig);
-
             //Initialize local repository
             SailRepository repo = (SailRepository) repositoryManager.getRepository("testTimestamping");
             repo.init();
 
-            //Initialize remote repository
-            //SPARQLRepository rrepo = (SPARQLRepository) remoteRepoManager.getRepository("testTimestamping");
-            //rrepo.init();
-
-            //Copy static config file to the target folder. This is because the config file does not get parsed correctly.
-            Path source = Paths.get("src/test/resources/config.ttl");
-            Path destination = Paths.get("target/GraphDB/repositories/testTimestamping/config.ttl");
-            Files.copy(source, destination, StandardCopyOption.REPLACE_EXISTING);
-
             //Establish connection to local repository
             embeddedRepoCon = repo.getConnection();
 
-            //Establish connection to remote repository
-            //remoteRepoCon = rrepo.getConnection();
 
         } catch (RDFHandlerException | RDFParseException | IOException | RepositoryConfigException | RepositoryException  e) {
             System.err.println("The GraphDB repository will not be created.");
