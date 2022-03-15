@@ -1,20 +1,18 @@
 package com.ontotext.trree.plugin.rdfstartimestamping;
 
-import org.eclipse.rdf4j.http.client.SPARQLProtocolSession;
-import org.eclipse.rdf4j.repository.Repository;
+import com.ontotext.graphdb.ConfigException;
+import com.ontotext.trree.sdk.ServerErrorException;
 import org.eclipse.rdf4j.model.Model;
 import org.eclipse.rdf4j.model.Resource;
 import org.eclipse.rdf4j.model.util.Models;
 import org.eclipse.rdf4j.model.vocabulary.RDF;
-import org.eclipse.rdf4j.query.BindingSet;
-import org.eclipse.rdf4j.query.BooleanQuery;
-import org.eclipse.rdf4j.query.TupleQuery;
-import org.eclipse.rdf4j.query.TupleQueryResult;
+import org.eclipse.rdf4j.query.*;
 import org.eclipse.rdf4j.repository.RepositoryConnection;
 import org.eclipse.rdf4j.repository.RepositoryException;
-import org.eclipse.rdf4j.repository.config.*;
+import org.eclipse.rdf4j.repository.config.RepositoryConfig;
+import org.eclipse.rdf4j.repository.config.RepositoryConfigException;
+import org.eclipse.rdf4j.repository.config.RepositoryConfigSchema;
 import org.eclipse.rdf4j.repository.manager.LocalRepositoryManager;
-import org.eclipse.rdf4j.repository.manager.RemoteRepositoryManager;
 import org.eclipse.rdf4j.repository.sail.SailRepository;
 import org.eclipse.rdf4j.repository.sparql.SPARQLRepository;
 import org.eclipse.rdf4j.rio.RDFFormat;
@@ -29,12 +27,8 @@ import org.junit.Test;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.util.Comparator;
 
 import static org.junit.Assert.*;
@@ -42,120 +36,82 @@ import static org.junit.Assert.*;
 /**
  * Tests the example plugin.
  */
-public class TestRDFStarTimestampingPlugin  {
+public class TestRDFStarTimestampingPlugin {
     private static LocalRepositoryManager repositoryManager;
-    //private static RemoteRepositoryManager remoteRepoManager;
-    private static RepositoryConnection embeddedRepoCon;
-    //private static RepositoryConnection remoteRepoCon;
-
+    private static SPARQLRepository repo;
+    private static RepositoryConnection sparqlRepoConnection;
 
 
     @BeforeClass
     public static void init() {
+        String queryEndpoint = "http://localhost:7200/repositories/testTimestamping";
+        String updateEndpoint = "http://localhost:7200/repositories/testTimestamping/statements";
         try {
             //Repo directory management
             File baseDir = new File(System.getProperty("user.home") + "/.graphdb/data");
             if (!baseDir.exists())
-                baseDir.mkdirs();
-            File repoDirectory = new File(System.getProperty("user.home") + "/.graphdb/data/repositories/testTimestamping");
-            if(repoDirectory.exists()) {
-                Files.walk(repoDirectory.toPath())
-                        .sorted(Comparator.reverseOrder())
-                        .map(Path::toFile)
-                        .forEach(File::delete);
-                System.out.println("Repository removed.");
-            }
+                throw new ConfigException("Repository data must be located in ~/graphdb/data." +
+                        " This directory does not exist");
 
-            //Create local repository
+            //Init repository manager
             repositoryManager = new LocalRepositoryManager(baseDir);
             repositoryManager.init();
 
-            //Add repository config to local repository manager
+            //Create repository and add it to GraphDB's data directory.
             InputStream config = TestRDFStarTimestampingPlugin.class.getResourceAsStream("/repo-defaults.ttl");
             Model repo_config_graph = Rio.parse(config, "", RDFFormat.TURTLE);
             Resource repositoryNode = Models.subject(repo_config_graph.filter(null, RDF.TYPE, RepositoryConfigSchema.REPOSITORY)).orElse(null);
             RepositoryConfig repositoryConfig = RepositoryConfig.create(repo_config_graph, repositoryNode);
             repositoryManager.addRepositoryConfig(repositoryConfig);
 
-            //Initialize local repository
-            SailRepository repo = (SailRepository) repositoryManager.getRepository("testTimestamping");
-            repo.init();
+            //Establish connection to SPARQL endpoint
+            repo = new SPARQLRepository(queryEndpoint, updateEndpoint);
+            sparqlRepoConnection = repo.getConnection();
 
-            //Establish connection to local repository
-            embeddedRepoCon = repo.getConnection();
+            //Test queries against SPARQL endpoint
+            try (RepositoryConnection connection = sparqlRepoConnection) {
+            BooleanQuery bQuery = connection.prepareBooleanQuery("ask from <http://example.com/testGraph> { ?s ?p ?o }");
+                boolean hasResults = bQuery.evaluate();
+                assertFalse("No triples should be in the graph yet.", hasResults);
+                System.out.println("Result from ask query: " + hasResults);
+                System.out.println("Read queries are executable against the SPARQL endpoint");
+            } catch (QueryEvaluationException e) {
+                System.err.println(e.getClass() + ":" + e.getMessage());
+                throw new ServerErrorException("Your GraphDB server might not be running.");
+            }
 
+            // Test update statements against SPARQL endpoint
+            try (RepositoryConnection connection = sparqlRepoConnection) {
+                connection.begin();
+                String updateString = "clear graph <http://example.com/testGraph>";
+                connection.prepareUpdate(updateString).execute();
+                updateString = "delete data {graph <http://example.com/testGraph> " +
+                        "{<http://example.com/s/v1> <http://example.com/p/v2> <http://example.com/o/v3>}}";
+                connection.prepareUpdate(updateString).execute();
+                connection.commit();
+                System.out.println("Write statements are executable against the embedded repository");
+            } catch (UpdateExecutionException e) {
+                System.err.println(e.getClass() + ":" + e.getMessage());
+                throw new RepositoryException(e.getMessage());
+            }
 
         } catch (RDFHandlerException | RDFParseException | IOException | RepositoryConfigException | RepositoryException  e) {
-            System.err.println("The GraphDB repository will not be created.");
-            System.err.println(e.getMessage());
+            System.err.println(e.getClass() + ":" + e.getMessage());
+            e.printStackTrace();
+            throw new ConfigException("Tests cannot start. " +
+                    "Check whether the server is running and your repository is setup correctly.");
         }
 
-    }
-
-    @Test
-    public void repoSailConnectionTest() {
-        //Test queries
-        BooleanQuery query = embeddedRepoCon.prepareBooleanQuery("ask from <http://example.com/testGraph> { ?s ?p ?o }");
-        boolean hasResults = query.evaluate();
-        assertFalse("No triples should be in the graph yet.", hasResults);
-        System.out.println("Result from ask query: " + hasResults);
-        System.out.println("Read queries are executable against the embedded repository");
-
-        // Test update statements
-        String updateString;
-        updateString = "clear graph <http://example.com/testGraph>";
-        embeddedRepoCon.prepareUpdate(updateString).execute();
-        embeddedRepoCon.commit();
-
-        updateString = "delete data {graph <http://example.com/testGraph> " +
-                "{<http://example.com/s/v1> <http://example.com/p/v2> <http://example.com/o/v3>}}";
-        embeddedRepoCon.prepareUpdate(updateString).execute();
-        embeddedRepoCon.commit();
-        System.out.println("Write statements are executable against the embedded repository");
-
-    }
-
-    @Test
-    public void repoSPARQLConnectionTest() {
-        //Test queries
-        SPARQLRepository repo = new SPARQLRepository("http://localhost:7200/repositories/testTimestamping");
-        repo.init();
-        try (RepositoryConnection connection = repo.getConnection()) {
-            BooleanQuery query = connection.prepareBooleanQuery("ask from <http://example.com/testGraph> { ?s ?p ?o }");
-            boolean hasResults = query.evaluate();
-            assertFalse("No triples should be in the graph yet.", hasResults);
-            System.out.println("Result from ask query: " + hasResults);
-            System.out.println("Read queries are executable against the embedded repository");
-        }
-        repo.shutDown();
-
-        // Test update statements
-        repo = new SPARQLRepository("http://localhost:7200/repositories/testTimestamping/statements");
-        repo.init();
-        try (RepositoryConnection connection = repo.getConnection()) {
-            String updateString;
-            updateString = "clear graph <http://example.com/testGraph>";
-            connection.begin();
-            connection.prepareUpdate(updateString).execute();
-            connection.commit();
-
-            updateString = "delete data {graph <http://example.com/testGraph> " +
-                    "{<http://example.com/s/v1> <http://example.com/p/v2> <http://example.com/o/v3>}}";
-            connection.prepareUpdate(updateString).execute();
-            connection.commit();
-            System.out.println("Write statements are executable against the embedded repository");
-        }
     }
 
     @Test
     public void insertSingleTripleVersioningTest() {
-        String updateString;
-        embeddedRepoCon.begin();
-        updateString = "insert data { graph <http://example.com/testGraph> {<http://example.com/s/v1> <http://example.com/p/v2> <http://example.com/o/v3> }}";
-        embeddedRepoCon.prepareUpdate(updateString).execute();
-        embeddedRepoCon.commit();
+        String updateString = "insert data { graph <http://example.com/testGraph> {<http://example.com/s/v1> <http://example.com/p/v2> <http://example.com/o/v3> }}";
+        sparqlRepoConnection.begin();
+        sparqlRepoConnection.prepareUpdate(updateString).execute();
+        sparqlRepoConnection.commit();
 
-        TupleQuery query = embeddedRepoCon.prepareTupleQuery("select * from <http://example.com/testGraph> { ?s ?p ?o }");
+        TupleQuery query = sparqlRepoConnection.prepareTupleQuery("select * from <http://example.com/testGraph> { ?s ?p ?o }");
         try (TupleQueryResult result = query.evaluate()) {
             assertTrue("Must have three triples - one data and two nested triples in the result", result.hasNext());
             assertEquals(3, result.stream().count());
@@ -202,10 +158,11 @@ public class TestRDFStarTimestampingPlugin  {
     @After
     public void clearTestGraph() {
         String updateString = "clear graph <http://example.com/testGraph>";
-        embeddedRepoCon.prepareUpdate(updateString).execute();
-        embeddedRepoCon.commit();
+        sparqlRepoConnection.begin();
+        sparqlRepoConnection.prepareUpdate(updateString).execute();
+        sparqlRepoConnection.commit();
 
-        BooleanQuery query = embeddedRepoCon.prepareBooleanQuery("ask from <http://example.com/testGraph> { ?s ?p ?o }");
+        BooleanQuery query = sparqlRepoConnection.prepareBooleanQuery("ask from <http://example.com/testGraph> { ?s ?p ?o }");
         boolean hasResults = query.evaluate();
         assertFalse("No triples should be in the graph anymore", hasResults);
         System.out.println("<http://example.com/testGraph> has been cleared.");
@@ -216,8 +173,8 @@ public class TestRDFStarTimestampingPlugin  {
     public static void shutdown() {
         //Close connection, shutdown repository and delete repository directory
         try {
-            embeddedRepoCon.close();
-            repositoryManager.getRepository("testTimestamping").shutDown();
+            sparqlRepoConnection.close();
+            repositoryManager.removeRepository("testTimestamping");
             repositoryManager.shutDown();
             System.out.println("Connection shutdown and repository 'testTimestamping' removed");
         } catch (NullPointerException e) {

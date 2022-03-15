@@ -12,8 +12,6 @@
     rdfs:label "Repository for evaluation of Sparql* queries against GraphDB" ;
     rep:repositoryImpl [
         rep:repositoryType "graphdb:FreeSailRepository" ;
-        sparql:query-endpoint <http://localhost:7200/repositories/testTimestamping> ;
-        sparql:update-endpoint <http://localhost:7200/repositories/testTimestamping/statements> ;
         sr:sailImpl [
             sail:sailType "graphdb:FreeSail" ;
 

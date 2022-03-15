@@ -8,10 +8,7 @@ import org.eclipse.rdf4j.repository.RepositoryConnection;
 import org.eclipse.rdf4j.repository.sparql.SPARQLRepository;
 
 import javax.management.StringValueExp;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Files;
@@ -20,6 +17,7 @@ import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Objects;
+import java.util.Scanner;
 import java.util.stream.Collectors;
 
 public class RDFStarTimestampingPlugin extends PluginBase implements StatementListener, PluginTransactionListener, ContextUpdateHandler {
@@ -32,6 +30,8 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 	private boolean triplesTimestamped;
 	private ArrayList<Triple> deleteRequestTriples;
 	private boolean anyDeleteRequestMatch;
+	public static final Object globalLock = new Object();
+
 
 	private class Triple {
 		private Resource subject;
@@ -96,7 +96,10 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 	@Override
 	public void handleContextUpdate(Resource subject, IRI predicate, Value object, Resource context, boolean b, PluginConnection pluginConnection) {
 		getLogger().info("Handling update");
-		if (b) getLogger().info("Adding triple");
+		if (b) {
+			getLogger().info("Adding and timestamping triple");
+
+		}
 		else {
 			getLogger().info("Deleting triple");
 			deleteRequestTriples.add(new Triple(subject, predicate, object, null));
@@ -126,7 +129,6 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 					entityToString(c), entityToString(s), entityToString(p), entityToString(o)));
 
 		}
-
 		return false;
 	}
 
@@ -185,7 +187,7 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 	public void transactionCommit(PluginConnection pluginConnection) {
 		getLogger().info("transactionCommit");
 
-		if(!anyDeleteRequestMatch) {
+		/*if(!anyDeleteRequestMatch) {
 			getLogger().info("Preparing triples to outdate");
 			for (Triple t: deleteRequestTriples) {
 				Value c = t.getContext();
@@ -208,36 +210,38 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 
 				}
 			}
+		}*/
+
+		synchronized (globalLock) {
+			if (!updateStrings.isEmpty() && !triplesTimestamped) {
+				Thread newThread = new Thread(() -> {
+					getLogger().info("Timestamping previously added triple");
+					repo = new SPARQLRepository(postEndpoint);
+					try (RepositoryConnection connection = repo.getConnection()) {
+						triplesTimestamped = true;
+						//repo.init();
+						connection.begin();
+						for (String updateString : updateStrings) {
+							System.out.println(updateString);
+							getLogger().info(updateString);
+							connection.prepareUpdate(updateString).execute();
+						}
+						connection.commit();
+						getLogger().info("Triple timestamped");
+					} finally {
+						updateStrings.clear();
+						triplesTimestamped = false;
+					}
+				});
+				newThread.start();
+			}
 		}
-
-		if (!updateStrings.isEmpty() && !triplesTimestamped) {
-			Thread newThread = new Thread(() -> {
-				getLogger().info("Timestamping previously added triple");
-				repo = new SPARQLRepository(postEndpoint);
-				try (RepositoryConnection connection = repo.getConnection()) {
-					triplesTimestamped = true;
-					repo.init();
-					connection.begin();
-					for (String updateString : updateStrings)
-						connection.prepareUpdate(updateString).execute();
-					connection.commit();
-					getLogger().info("Triple timestamped");
-
-				} finally {
-					updateStrings.clear();
-					triplesTimestamped = false;
-				}
-			});
-			newThread.start();
-		}
-
-
 	}
 
 	@Override
 	public void transactionCompleted(PluginConnection pluginConnection) {
 		getLogger().info("transactionCompleted");
-		anyDeleteRequestMatch=false;
+		anyDeleteRequestMatch = false;
 
 	}
 
