@@ -8,7 +8,6 @@
 @prefix sparql: <http://www.openrdf.org/config/repository/sparql#>.
 
 [] a rep:Repository ;
-    rep:repositoryID "testTimestamping" ;
     rdfs:label "Repository for evaluation of Sparql* queries against GraphDB" ;
     rep:repositoryImpl [
         rep:repositoryType "graphdb:FreeSailRepository" ;

@@ -4,9 +4,11 @@ import com.ontotext.graphdb.ConfigException;
 import com.ontotext.trree.sdk.ServerErrorException;
 import org.eclipse.rdf4j.model.Model;
 import org.eclipse.rdf4j.model.Resource;
+import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
 import org.eclipse.rdf4j.model.util.Models;
 import org.eclipse.rdf4j.model.vocabulary.RDF;
 import org.eclipse.rdf4j.query.*;
+import org.eclipse.rdf4j.repository.Repository;
 import org.eclipse.rdf4j.repository.RepositoryConnection;
 import org.eclipse.rdf4j.repository.RepositoryException;
 import org.eclipse.rdf4j.repository.config.RepositoryConfig;
@@ -30,6 +32,7 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
+import java.util.Random;
 
 import static org.junit.Assert.*;
 
@@ -40,12 +43,20 @@ public class TestRDFStarTimestampingPlugin {
     private static LocalRepositoryManager repositoryManager;
     private static SPARQLRepository repo;
     private static RepositoryConnection sparqlRepoConnection;
+    private static String repoId;
 
 
     @BeforeClass
     public static void init() {
-        String queryEndpoint = "http://localhost:7200/repositories/testTimestamping";
-        String updateEndpoint = "http://localhost:7200/repositories/testTimestamping/statements";
+        //Wenn re-starting tests and trying to create a repository with the same ID as before within the same
+        //GraphDB session, the repository will not be created due to unknown reasons. That is why we
+        //randomize the repository ID so that we can create multiple test repositories within one server session.
+        Random ra = new Random(System.currentTimeMillis());
+        repoId = String.format("testTimestamping%s", ra.doubles().findFirst().getAsDouble());
+        repoId = "testTimestamping";
+
+        String queryEndpoint = String.format("http://localhost:7200/repositories/%s", repoId);
+        String updateEndpoint = String.format("http://localhost:7200/repositories/%s/statements", repoId);
         try {
             //Repo directory management
             File baseDir = new File(System.getProperty("user.home") + "/.graphdb/data");
@@ -61,8 +72,21 @@ public class TestRDFStarTimestampingPlugin {
             InputStream config = TestRDFStarTimestampingPlugin.class.getResourceAsStream("/repo-defaults.ttl");
             Model repo_config_graph = Rio.parse(config, "", RDFFormat.TURTLE);
             Resource repositoryNode = Models.subject(repo_config_graph.filter(null, RDF.TYPE, RepositoryConfigSchema.REPOSITORY)).orElse(null);
+            repo_config_graph.add(repositoryNode, RepositoryConfigSchema.REPOSITORYID,
+                    SimpleValueFactory.getInstance().createLiteral(repoId));
             RepositoryConfig repositoryConfig = RepositoryConfig.create(repo_config_graph, repositoryNode);
             repositoryManager.addRepositoryConfig(repositoryConfig);
+
+            /*File lock = new File(System.getProperty("user.home") + String.format("/.graphdb/data/repositories/%s/storage/lock", repoId));
+            if (lock.exists())
+                lock.delete();
+            for (Repository r: repositoryManager.getAllRepositories()) {
+                System.out.println(r.getDataDir().toPath() + ": " + r.isInitialized());
+                System.out.println(r.getDataDir().toPath() + ": " + r.isWritable());
+                System.out.println(r.getDataDir().toPath() + ": " + r.getConnection().isOpen());
+                System.out.println(r.getDataDir().toPath() + ": " + r.getConnection().isActive());
+
+            }; */
 
             //Establish connection to SPARQL endpoint
             repo = new SPARQLRepository(queryEndpoint, updateEndpoint);
@@ -95,6 +119,7 @@ public class TestRDFStarTimestampingPlugin {
                 throw new RepositoryException(e.getMessage());
             }
 
+
         } catch (RDFHandlerException | RDFParseException | IOException | RepositoryConfigException | RepositoryException  e) {
             System.err.println(e.getClass() + ":" + e.getMessage());
             e.printStackTrace();
@@ -105,11 +130,13 @@ public class TestRDFStarTimestampingPlugin {
     }
 
     @Test
-    public void insertSingleTripleVersioningTest() {
+    public void insertSingleTripleVersioningTest() throws InterruptedException {
         String updateString = "insert data { graph <http://example.com/testGraph> {<http://example.com/s/v1> <http://example.com/p/v2> <http://example.com/o/v3> }}";
         sparqlRepoConnection.begin();
         sparqlRepoConnection.prepareUpdate(updateString).execute();
         sparqlRepoConnection.commit();
+
+        Thread.sleep(5000);
 
         //TODO: wait for plugin to insert triples
 
@@ -176,9 +203,13 @@ public class TestRDFStarTimestampingPlugin {
         //Close connection, shutdown repository and delete repository directory
         try {
             sparqlRepoConnection.close();
-            repositoryManager.removeRepository("testTimestamping");
+            File lock = new File(System.getProperty("user.home") + String.format("/.graphdb/data/repositories/testTimestamping/storage/lock", repoId));
+            if (lock.exists())
+                lock.delete();
+            repositoryManager.getRepository("testTimestamping").shutDown();
+            repositoryManager.removeRepository(repoId);
             repositoryManager.shutDown();
-            System.out.println("Connection shutdown and repository 'testTimestamping' removed");
+            System.out.println(String.format("Connection shutdown and repository %s removed", repoId));
         } catch (NullPointerException e) {
             System.out.println("Connection is not open and can therefore be not closed.");
         }
