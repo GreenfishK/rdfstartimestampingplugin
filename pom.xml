@@ -162,6 +162,15 @@
             <version>4.13.2</version>
             <scope>test</scope>
         </dependency>
+        <!-- https://mvnrepository.com/artifact/com.palantir.docker.compose/docker-compose-rule-junit4 -->
+
+        <!-- https://mvnrepository.com/artifact/org.testcontainers/docker-compose -->
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>docker-compose</artifactId>
+            <version>0.9.9</version>
+        </dependency>
+
     </dependencies>
 
 

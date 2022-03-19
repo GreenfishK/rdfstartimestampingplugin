@@ -2,49 +2,79 @@ package com.ontotext.trree.plugin.rdfstartimestamping;
 
 import com.ontotext.graphdb.ConfigException;
 import com.ontotext.trree.sdk.ServerErrorException;
-import org.eclipse.rdf4j.model.Model;
-import org.eclipse.rdf4j.model.Resource;
-import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
-import org.eclipse.rdf4j.model.util.Models;
-import org.eclipse.rdf4j.model.vocabulary.RDF;
 import org.eclipse.rdf4j.query.*;
-import org.eclipse.rdf4j.repository.Repository;
 import org.eclipse.rdf4j.repository.RepositoryConnection;
 import org.eclipse.rdf4j.repository.RepositoryException;
-import org.eclipse.rdf4j.repository.config.RepositoryConfig;
 import org.eclipse.rdf4j.repository.config.RepositoryConfigException;
-import org.eclipse.rdf4j.repository.config.RepositoryConfigSchema;
-import org.eclipse.rdf4j.repository.manager.LocalRepositoryManager;
-import org.eclipse.rdf4j.repository.sail.SailRepository;
 import org.eclipse.rdf4j.repository.sparql.SPARQLRepository;
-import org.eclipse.rdf4j.rio.RDFFormat;
 import org.eclipse.rdf4j.rio.RDFHandlerException;
 import org.eclipse.rdf4j.rio.RDFParseException;
-import org.eclipse.rdf4j.rio.Rio;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
-
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.Comparator;
+import org.junit.*;
+import java.io.*;
+import java.net.Socket;
 import java.util.Random;
-
 import static org.junit.Assert.*;
 
 /**
  * Tests the example plugin.
  */
 public class TestRDFStarTimestampingPlugin {
-    private static LocalRepositoryManager repositoryManager;
     private static SPARQLRepository repo;
     private static RepositoryConnection sparqlRepoConnection;
     private static String repoId;
 
+    private static boolean available(int port) {
+        try (Socket ignored = new Socket("localhost", port)) {
+            return false;
+        } catch (IOException ignored) {
+            return true;
+        }
+    }
+
+    private static void runDocker(File file) throws IOException, InterruptedException {
+        Process process;
+        try {
+            ProcessBuilder pb = new ProcessBuilder("bash", file.toString());
+            pb.inheritIO();
+            process = pb.start();
+            process.waitFor();
+
+        } finally {
+            file.delete();
+        }
+    }
+
+    private static File startContainer() throws IOException {
+        File tempScript = File.createTempFile("script", null);
+
+        Writer streamWriter = new OutputStreamWriter(new FileOutputStream(
+                tempScript));
+        PrintWriter printWriter = new PrintWriter(streamWriter);
+
+        printWriter.println("cd src/test/graphdb-docker-master/preload");
+        printWriter.println("docker-compose up -d");
+        printWriter.println("cd ..");
+        printWriter.println("docker-compose up -d");
+
+        printWriter.close();
+
+        return tempScript;
+    }
+
+    private static File shutdownContainer() throws IOException {
+        File tempScript = File.createTempFile("script", null);
+
+        Writer streamWriter = new OutputStreamWriter(new FileOutputStream(
+                tempScript));
+        PrintWriter printWriter = new PrintWriter(streamWriter);
+
+        printWriter.println("cd src/test/graphdb-docker-master");
+        printWriter.println("docker-compose down");
+
+        printWriter.close();
+
+        return tempScript;
+    }
 
     @BeforeClass
     public static void init() {
@@ -58,35 +88,10 @@ public class TestRDFStarTimestampingPlugin {
         String queryEndpoint = String.format("http://localhost:7200/repositories/%s", repoId);
         String updateEndpoint = String.format("http://localhost:7200/repositories/%s/statements", repoId);
         try {
-            //Repo directory management
-            File baseDir = new File(System.getProperty("user.home") + "/.graphdb/data");
-            if (!baseDir.exists())
-                throw new ConfigException("Repository data must be located in ~/graphdb/data." +
-                        " This directory does not exist");
-
-            //Init repository manager
-            repositoryManager = new LocalRepositoryManager(baseDir);
-            repositoryManager.init();
-
-            //Create repository and add it to GraphDB's data directory.
-            InputStream config = TestRDFStarTimestampingPlugin.class.getResourceAsStream("/repo-defaults.ttl");
-            Model repo_config_graph = Rio.parse(config, "", RDFFormat.TURTLE);
-            Resource repositoryNode = Models.subject(repo_config_graph.filter(null, RDF.TYPE, RepositoryConfigSchema.REPOSITORY)).orElse(null);
-            repo_config_graph.add(repositoryNode, RepositoryConfigSchema.REPOSITORYID,
-                    SimpleValueFactory.getInstance().createLiteral(repoId));
-            RepositoryConfig repositoryConfig = RepositoryConfig.create(repo_config_graph, repositoryNode);
-            repositoryManager.addRepositoryConfig(repositoryConfig);
-
-            /*File lock = new File(System.getProperty("user.home") + String.format("/.graphdb/data/repositories/%s/storage/lock", repoId));
-            if (lock.exists())
-                lock.delete();
-            for (Repository r: repositoryManager.getAllRepositories()) {
-                System.out.println(r.getDataDir().toPath() + ": " + r.isInitialized());
-                System.out.println(r.getDataDir().toPath() + ": " + r.isWritable());
-                System.out.println(r.getDataDir().toPath() + ": " + r.getConnection().isOpen());
-                System.out.println(r.getDataDir().toPath() + ": " + r.getConnection().isActive());
-
-            }; */
+            //Start GraphDB server and create or re-create testTimestamping repository with docker-compose.
+            runDocker(startContainer());
+            System.out.println("Port not available yet available...");
+            Thread.sleep(20000);
 
             //Establish connection to SPARQL endpoint
             repo = new SPARQLRepository(queryEndpoint, updateEndpoint);
@@ -120,7 +125,7 @@ public class TestRDFStarTimestampingPlugin {
             }
 
 
-        } catch (RDFHandlerException | RDFParseException | IOException | RepositoryConfigException | RepositoryException  e) {
+        } catch (RDFHandlerException | RDFParseException | RepositoryConfigException | RepositoryException | IOException | InterruptedException e) {
             System.err.println(e.getClass() + ":" + e.getMessage());
             e.printStackTrace();
             throw new ConfigException("Tests cannot start. " +
@@ -202,16 +207,21 @@ public class TestRDFStarTimestampingPlugin {
     public static void shutdown() {
         //Close connection, shutdown repository and delete repository directory
         try {
+            repo.shutDown();
             sparqlRepoConnection.close();
-            File lock = new File(System.getProperty("user.home") + String.format("/.graphdb/data/repositories/testTimestamping/storage/lock", repoId));
-            if (lock.exists())
-                lock.delete();
-            repositoryManager.getRepository("testTimestamping").shutDown();
-            repositoryManager.removeRepository(repoId);
-            repositoryManager.shutDown();
+            //File lock = new File(System.getProperty("user.home") + String.format("/.graphdb/data/repositories/testTimestamping/storage/lock", repoId));
+            //if (lock.exists())
+            //    lock.delete();
+            runDocker(shutdownContainer());
+
+            //TODO: execute docker-compose down
             System.out.println(String.format("Connection shutdown and repository %s removed", repoId));
         } catch (NullPointerException e) {
             System.out.println("Connection is not open and can therefore be not closed.");
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
         }
 
     }
