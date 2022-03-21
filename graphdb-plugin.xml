@@ -1,7 +1,7 @@
 <assembly>
   <id>graphdb-plugin</id>
   <formats>
-    <format>zip</format>
+    <format>jar</format>
   </formats>
   <includeBaseDirectory>true</includeBaseDirectory>
   <dependencySets>
