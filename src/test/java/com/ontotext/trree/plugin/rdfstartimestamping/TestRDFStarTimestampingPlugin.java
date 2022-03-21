@@ -189,7 +189,7 @@ public class TestRDFStarTimestampingPlugin {
     }
 
 
-    @After
+    //@After
     public void clearTestGraph() {
         String updateString = "clear graph <http://example.com/testGraph>";
         sparqlRepoConnection.begin();
@@ -212,16 +212,12 @@ public class TestRDFStarTimestampingPlugin {
             //File lock = new File(System.getProperty("user.home") + String.format("/.graphdb/data/repositories/testTimestamping/storage/lock", repoId));
             //if (lock.exists())
             //    lock.delete();
-            runDocker(shutdownContainer());
+            //runDocker(shutdownContainer());
 
             //TODO: execute docker-compose down
             System.out.println(String.format("Connection shutdown and repository %s removed", repoId));
         } catch (NullPointerException e) {
             System.out.println("Connection is not open and can therefore be not closed.");
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
         }
 
     }

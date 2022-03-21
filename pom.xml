@@ -88,7 +88,7 @@
                 <artifactId>maven-jar-plugin</artifactId>
                 <version>2.3.1</version>
                 <configuration>
-                    <outputDirectory>../graphdb-free/app/lib/plugins/rdf-star-timestamping-plugin</outputDirectory>
+                    <outputDirectory>src/test/resources/graphdb-docker-master/free-edition</outputDirectory>
                 </configuration>
             </plugin>
             <plugin>

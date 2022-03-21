@@ -6,7 +6,6 @@ ARG edition=free
 
 ENV GRAPHDB_PARENT_DIR=/opt/graphdb
 ENV GRAPHDB_HOME=${GRAPHDB_PARENT_DIR}/home
-
 ENV GRAPHDB_INSTALL_DIR=${GRAPHDB_PARENT_DIR}/dist
 
 ADD graphdb-${edition}-${version}-dist.zip /tmp
@@ -21,11 +20,15 @@ RUN apk add --no-cache bash util-linux procps net-tools busybox-extras wget less
 
 ENV PATH=${GRAPHDB_INSTALL_DIR}/bin:$PATH
 
-RUN mkdir -p /opt/graphdb/home/conf
-
-COPY LICENSE.txt /opt/graphdb/home/conf
-
 CMD ["-Dgraphdb.home=/opt/graphdb/home"]
+
+RUN mkdir -p ${GRAPHDB_HOME}/conf
+
+COPY LICENSE.txt ${GRAPHDB_HOME}/conf
+
+RUN mkdir ${GRAPHDB_INSTALL_DIR}/lib/plugins/rdf-star-timestamping-plugin
+
+COPY rdf-star-timestamping-plugin-0.1.jar ${GRAPHDB_INSTALL_DIR}/lib/plugins/rdf-star-timestamping-plugin
 
 ENTRYPOINT ["/opt/graphdb/dist/bin/graphdb"]
 
