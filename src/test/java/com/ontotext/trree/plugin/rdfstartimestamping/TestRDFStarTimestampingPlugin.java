@@ -85,8 +85,8 @@ public class TestRDFStarTimestampingPlugin {
         try {
             //Start GraphDB server and create or re-create testTimestamping repository with docker-compose.
             runDocker(startContainer());
-            System.out.println("Port not available yet available...");
-            Thread.sleep(20000);
+            System.out.println("\nPort not available yet available...");
+            Thread.sleep(15000);
 
             //Establish connection to SPARQL endpoint
             repo = new SPARQLRepository(queryEndpoint, updateEndpoint);
@@ -136,9 +136,8 @@ public class TestRDFStarTimestampingPlugin {
         sparqlRepoConnection.prepareUpdate(updateString).execute();
         sparqlRepoConnection.commit();
 
+        //Wait for plugin to insert triples. This is managed by the server.
         Thread.sleep(5000);
-
-        //TODO: wait for plugin to insert triples
 
         TupleQuery query = sparqlRepoConnection.prepareTupleQuery("select * from <http://example.com/testGraph> { ?s ?p ?o }");
         try (TupleQueryResult result = query.evaluate()) {
@@ -154,8 +153,30 @@ public class TestRDFStarTimestampingPlugin {
     }
 
     @Test
-    public void insertMultipleTriplesVersioningTest() {
-        fail("not yet implemented");
+    public void insertMultipleTriplesVersioningTest() throws InterruptedException {
+        String updateString = "insert data { graph <http://example.com/testGraph>" +
+                " {<http://example.com/s/v11> <http://example.com/p/v21> <http://example.com/o/v31> ." +
+                " <http://example.com/s/v12> <http://example.com/p/v22> <http://example.com/o/v32> }" +
+                "" +
+                "}";
+        sparqlRepoConnection.begin();
+        sparqlRepoConnection.prepareUpdate(updateString).execute();
+        sparqlRepoConnection.commit();
+
+        //Wait for plugin to insert triples. This is managed by the server.
+        Thread.sleep(5000);
+
+        TupleQuery query = sparqlRepoConnection.prepareTupleQuery("select * from <http://example.com/testGraph> { ?s ?p ?o }");
+        try (TupleQueryResult result = query.evaluate()) {
+            assertTrue("Must have two nested triples in the result", result.hasNext());
+            assertEquals(4, result.stream().count());
+            while (result.hasNext()) {
+                BindingSet bindings = result.next();
+                for (String bindingName : result.getBindingNames()) {
+                    System.out.println(bindingName + ": " + bindings.getValue(bindingName));
+                }
+            }
+        }
     }
 
     @Test
