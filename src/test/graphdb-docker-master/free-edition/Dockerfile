@@ -21,6 +21,10 @@ RUN apk add --no-cache bash util-linux procps net-tools busybox-extras wget less
 
 ENV PATH=${GRAPHDB_INSTALL_DIR}/bin:$PATH
 
+RUN mkdir -p /opt/graphdb/home/conf
+
+COPY LICENSE.txt /opt/graphdb/home/conf
+
 CMD ["-Dgraphdb.home=/opt/graphdb/home"]
 
 ENTRYPOINT ["/opt/graphdb/dist/bin/graphdb"]
