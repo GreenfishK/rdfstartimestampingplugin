@@ -184,7 +184,7 @@ public class TestRDFStarTimestampingPlugin {
     }
 
 
-    //@After
+    @After
     public void clearTestGraph() {
         String updateString = "clear graph <http://example.com/testGraph>";
         sparqlRepoConnection.begin();
