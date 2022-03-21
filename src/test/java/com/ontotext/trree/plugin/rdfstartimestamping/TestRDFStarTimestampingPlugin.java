@@ -51,7 +51,7 @@ public class TestRDFStarTimestampingPlugin {
                 tempScript));
         PrintWriter printWriter = new PrintWriter(streamWriter);
 
-        printWriter.println("cd src/test/graphdb-docker-master/preload");
+        printWriter.println("cd src/test/resources/graphdb-docker-master/preload");
         printWriter.println("docker-compose up -d");
         printWriter.println("cd ..");
         printWriter.println("docker-compose up -d");
@@ -68,7 +68,7 @@ public class TestRDFStarTimestampingPlugin {
                 tempScript));
         PrintWriter printWriter = new PrintWriter(streamWriter);
 
-        printWriter.println("cd src/test/graphdb-docker-master");
+        printWriter.println("cd src/test/resources/graphdb-docker-master");
         printWriter.println("docker-compose down");
 
         printWriter.close();
