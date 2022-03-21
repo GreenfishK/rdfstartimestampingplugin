@@ -78,11 +78,6 @@ public class TestRDFStarTimestampingPlugin {
 
     @BeforeClass
     public static void init() {
-        //Wenn re-starting tests and trying to create a repository with the same ID as before within the same
-        //GraphDB session, the repository will not be created due to unknown reasons. That is why we
-        //randomize the repository ID so that we can create multiple test repositories within one server session.
-        Random ra = new Random(System.currentTimeMillis());
-        repoId = String.format("testTimestamping%s", ra.doubles().findFirst().getAsDouble());
         repoId = "testTimestamping";
 
         String queryEndpoint = String.format("http://localhost:7200/repositories/%s", repoId);
@@ -209,15 +204,13 @@ public class TestRDFStarTimestampingPlugin {
         try {
             repo.shutDown();
             sparqlRepoConnection.close();
-            //File lock = new File(System.getProperty("user.home") + String.format("/.graphdb/data/repositories/testTimestamping/storage/lock", repoId));
-            //if (lock.exists())
-            //    lock.delete();
-            //runDocker(shutdownContainer());
+            runDocker(shutdownContainer());
 
-            //TODO: execute docker-compose down
             System.out.println(String.format("Connection shutdown and repository %s removed", repoId));
         } catch (NullPointerException e) {
             System.out.println("Connection is not open and can therefore be not closed.");
+        } catch (IOException | InterruptedException e) {
+            e.printStackTrace();
         }
 
     }
