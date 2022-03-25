@@ -10,4 +10,8 @@
 		<level value="INFO" />
 		<appender-ref ref="Console"/>
 	</root>
+
+	<logger name="c.o.plugin.rdf-star-timestamping" level="INFO" additivity="false">
+		<appender-ref ref="Console"/>
+	</logger>
 </configuration>

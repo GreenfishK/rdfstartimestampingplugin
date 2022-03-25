@@ -87,9 +87,10 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 	@Override
 	public Resource[] getUpdateContexts() {
 		getLogger().info("getUpdateContexts");
-		Resource[] res = new Resource[1];
+		Resource[] res = new Resource[2];
 		//TODO: add other contexts from db (apart from the default context/no context).
 		res[0] = () -> "";
+		res[1] = () -> "<http://example.com/testGraph>";
 		return res;
 	}
 
@@ -127,9 +128,6 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 
 			updateStrings.add(MessageFormat.format(readAllBytes(template),
 					entityToString(c), entityToString(s), entityToString(p), entityToString(o)));
-			getLogger().info(MessageFormat.format(readAllBytes(template),
-					entityToString(c), entityToString(s), entityToString(p), entityToString(o)));
-
 		}
 		return false;
 	}
@@ -196,15 +194,19 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 				Value s = t.getSubject();
 				Value p = t.getPredicate();
 				Value o = t.getObject();
-				getLogger().info(s.stringValue() + " " + p.stringValue() + " " + o.stringValue() + " " + c.stringValue());
 
 				URL res = getClass().getClassLoader().getResource("timestampedDeleteTemplate");
 				assert res != null;
 				String template = "";
-				if (Objects.equals(c, null))
+				if (Objects.equals(c, null)) {
 					template = "timestampedDeleteTemplate";
-				else
+					getLogger().info(s.stringValue() + " " + p.stringValue() + " " + o.stringValue());
+				}
+				else {
 					template = "timestampedDeleteWithContextTemplate";
+					getLogger().info(s.stringValue() + " " + p.stringValue() + " " + o.stringValue() + " " + c.stringValue());
+
+				}
 
 				updateStrings.add(MessageFormat.format(readAllBytes(template),
 						entityToString(c), entityToString(s), entityToString(p), entityToString(o)));
@@ -222,7 +224,6 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 						//repo.init();
 						connection.begin();
 						for (String updateString : updateStrings) {
-							System.out.println(updateString);
 							getLogger().info(updateString);
 							connection.prepareUpdate(updateString).execute();
 						}
