@@ -180,8 +180,25 @@ public class TestRDFStarTimestampingPlugin {
     }
 
     @Test
-    public void deleteSingleTripleVersioningTest() {
-        fail("not yet implemented");
+    public void deleteSingleTripleVersioningTest() throws InterruptedException {
+        String updateString = "insert data { graph <http://example.com/testGraph>" +
+                " {<http://example.com/s/v12> <http://example.com/p/v22> <http://example.com/o/v32> }" +
+                "" +
+                "}";
+        sparqlRepoConnection.begin();
+        sparqlRepoConnection.prepareUpdate(updateString).execute();
+        sparqlRepoConnection.commit();
+
+        Thread.sleep(5000);
+
+        TupleQuery query = sparqlRepoConnection.prepareTupleQuery("select * from <http://example.com/testGraph> { ?s ?p ?o }");
+        try (TupleQueryResult result = query.evaluate()) {
+            assertTrue("Number of triples should not change", result.hasNext());
+            while (result.hasNext()) {
+                String timestamp = result.next().getValue("o").stringValue();
+                assertNotEquals("9999-12-31T00:00:00.000+00:00", timestamp);
+            }
+        }
     }
 
     @Test
