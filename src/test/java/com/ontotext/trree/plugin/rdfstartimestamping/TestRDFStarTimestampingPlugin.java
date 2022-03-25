@@ -52,7 +52,9 @@ public class TestRDFStarTimestampingPlugin {
         PrintWriter printWriter = new PrintWriter(streamWriter);
 
         printWriter.println("cd src/test/resources/graphdb-docker-master/preload");
+        printWriter.println("docker-compose up --build");
         printWriter.println("docker-compose up -d");
+
         printWriter.println("cd ..");
         printWriter.println("docker-compose up -d");
 
@@ -182,6 +184,17 @@ public class TestRDFStarTimestampingPlugin {
     @Test
     public void deleteSingleTripleVersioningTest() throws InterruptedException {
         String updateString = "insert data { graph <http://example.com/testGraph>" +
+                " {<http://example.com/s/v12> <http://example.com/p/v22> <http://example.com/o/v32> }" +
+                "" +
+                "}";
+        sparqlRepoConnection.begin();
+        sparqlRepoConnection.prepareUpdate(updateString).execute();
+        sparqlRepoConnection.commit();
+
+        Thread.sleep(5000);
+
+        //Delete
+        updateString = "delete data { graph <http://example.com/testGraph>" +
                 " {<http://example.com/s/v12> <http://example.com/p/v22> <http://example.com/o/v32> }" +
                 "" +
                 "}";

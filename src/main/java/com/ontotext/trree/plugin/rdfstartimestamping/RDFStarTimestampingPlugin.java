@@ -101,8 +101,10 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 
 		}
 		else {
-			getLogger().info("Deleting triple");
-			deleteRequestTriples.add(new Triple(subject, predicate, object, null));
+			if (!triplesTimestamped) {
+				getLogger().info("Deleting triple");
+				deleteRequestTriples.add(new Triple(subject, predicate, object, context));
+			}
 		}
 	}
 
@@ -187,32 +189,30 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 	public void transactionCommit(PluginConnection pluginConnection) {
 		getLogger().info("transactionCommit");
 
-		/*if(!anyDeleteRequestMatch) {
+		if(!anyDeleteRequestMatch && !deleteRequestTriples.isEmpty() && !triplesTimestamped) {
 			getLogger().info("Preparing triples to outdate");
 			for (Triple t: deleteRequestTriples) {
 				Value c = t.getContext();
 				Value s = t.getSubject();
 				Value p = t.getPredicate();
 				Value o = t.getObject();
-				getLogger().info(s.stringValue() + " " + p.stringValue() + " " + o.stringValue());
+				getLogger().info(s.stringValue() + " " + p.stringValue() + " " + o.stringValue() + " " + c.stringValue());
 
-				if (!triplesTimestamped) {
-					URL res = getClass().getClassLoader().getResource("timestampedDeleteTemplate");
-					assert res != null;
-					String template = "";
-					if (Objects.equals(c, null))
-						template = "timestampedDeleteTemplate";
-					else
-						template = "timestampedDeleteWithContextTemplate";
+				URL res = getClass().getClassLoader().getResource("timestampedDeleteTemplate");
+				assert res != null;
+				String template = "";
+				if (Objects.equals(c, null))
+					template = "timestampedDeleteTemplate";
+				else
+					template = "timestampedDeleteWithContextTemplate";
 
-					updateStrings.add(MessageFormat.format(readAllBytes(template),
-							entityToString(c), entityToString(s), entityToString(p), entityToString(o)));
-
-				}
+				updateStrings.add(MessageFormat.format(readAllBytes(template),
+						entityToString(c), entityToString(s), entityToString(p), entityToString(o)));
 			}
-		}*/
+		}
 
 		synchronized (globalLock) {
+
 			if (!updateStrings.isEmpty() && !triplesTimestamped) {
 				Thread newThread = new Thread(() -> {
 					getLogger().info("Timestamping previously added triple");
