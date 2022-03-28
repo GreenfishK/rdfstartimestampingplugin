@@ -39,7 +39,7 @@ services:
       # host directory (local filesystem on linux): virtual directory
       # Mounts files from your local file system (left) to a "virtual" docker governed filesystem (right).
       # ${...} environment variables are defined in .env
+      - ${REPOSITORY_CONFIG_FILE}:/opt/graphdb/graphdb-repo-config.ttl
       - ${GRAPHDB_HOME}:/opt/graphdb/home
       - ${IMPORT_FOLDER}:/opt/graphdb/home/graphdb-import
       - ${IMPORT_FILE}:/opt/graphdb/home/graphdb-import/test.ttl
-      - ${REPOSITORY_CONFIG_FILE}:/opt/graphdb/graphdb-repo-config.ttl

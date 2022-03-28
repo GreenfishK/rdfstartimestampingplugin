@@ -105,7 +105,8 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 		}
 		else {
 			if (!triplesTimestamped) {
-				getLogger().info("Deleting triple");
+				getLogger().info("Requesting delete of triple: " + subject.stringValue()
+						+ " " + predicate.stringValue() + " " + object.stringValue());
 				deleteRequestTriples.add(new Triple(subject, predicate, object, context));
 			}
 		}

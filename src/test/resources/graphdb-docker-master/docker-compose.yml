@@ -25,4 +25,7 @@ services:
       - 7200:7200
     volumes:
       - ../../../../target/graphdb-data:/opt/graphdb/home
+      - ../../../../target/rdf-star-timestamping-plugin-0.1.jar:/opt/graphdb/dist/lib/plugins/rdf-star-timestamping-plugin/rdf-star-timestamping-plugin-0.1.jar
+      - ./free-edition/LICENSE.txt:/opt/graphdb/dist/LICENSE.txt
+
 

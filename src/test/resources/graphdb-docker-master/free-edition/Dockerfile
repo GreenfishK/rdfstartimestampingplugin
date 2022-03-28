@@ -22,14 +22,6 @@ ENV PATH=${GRAPHDB_INSTALL_DIR}/bin:$PATH
 
 CMD ["-Dgraphdb.home=/opt/graphdb/home"]
 
-RUN mkdir -p ${GRAPHDB_HOME}/conf
-
-COPY LICENSE.txt ${GRAPHDB_HOME}/conf
-
-RUN mkdir ${GRAPHDB_INSTALL_DIR}/lib/plugins/rdf-star-timestamping-plugin
-
-COPY rdf-star-timestamping-plugin-0.1.jar ${GRAPHDB_INSTALL_DIR}/lib/plugins/rdf-star-timestamping-plugin
-
 ENTRYPOINT ["/opt/graphdb/dist/bin/graphdb"]
 
 EXPOSE 7200

@@ -68,7 +68,7 @@
                 <artifactId>maven-jar-plugin</artifactId>
                 <version>2.3.1</version>
                 <configuration>
-                    <outputDirectory>src/test/resources/graphdb-docker-master/free-edition</outputDirectory>
+                    <outputDirectory>target</outputDirectory>
                 </configuration>
             </plugin>
             <plugin>
