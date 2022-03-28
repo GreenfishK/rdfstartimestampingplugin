@@ -265,17 +265,7 @@ public class TestRDFStarTimestampingPlugin {
     public void deleteSingleTripleTest() throws InterruptedException {
         defaultGraph = true;
         String updateString;
-        /*String updateString = "insert data { " +
-                " <http://example.com/s/deleteThis1> <http://example.com/p/deleteThis1> <http://example.com/o/deleteThis1> " +
-                "" +
-                "}";
-        sparqlRepoConnection.begin();
-        sparqlRepoConnection.prepareUpdate(updateString).execute();
-        sparqlRepoConnection.commit();
 
-        Thread.sleep(5000); */
-
-        //Delete
         updateString = "delete data { " +
                 " <http://example.com/s/deleteThis1> <http://example.com/p/deleteThis1> <http://example.com/o/deleteThis1> " +
                 "" +
@@ -289,17 +279,20 @@ public class TestRDFStarTimestampingPlugin {
         TupleQuery query = sparqlRepoConnection.prepareTupleQuery("select * { ?s ?p ?o }");
         try (TupleQueryResult result = query.evaluate()) {
             assertTrue("Number of triples should not change", result.hasNext());
+            int c = 0;
             while (result.hasNext()) {
                 BindingSet bs = result.next();
                 String s = bs.getValue("s").stringValue();
                 String p = bs.getValue("p").stringValue();
                 String o = bs.getValue("o").stringValue();
-                if (s.startsWith("<<")) {
+                String t = "<<http://example.com/s/deleteThis1 http://example.com/p/deleteThis1 http://example.com/o/deleteThis1>>";
+                if (s.startsWith(t)) {
+                    c++;
                     System.out.println(s + " " + p + " " + o);
                     assertNotEquals("9999-12-31T00:00:00.000+00:00", o);
                 }
-
             }
+            assertEquals(2, c);
         }
     }
 
