@@ -87,10 +87,12 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 	@Override
 	public Resource[] getUpdateContexts() {
 		getLogger().info("getUpdateContexts");
-		Resource[] res = new Resource[2];
+		Resource[] res = new Resource[3];
 		//TODO: add other contexts from db (apart from the default context/no context).
 		res[0] = () -> "";
 		res[1] = () -> "<http://example.com/testGraph>";
+		res[2] = () -> "http://example.com/testGraph";
+
 		return res;
 	}
 

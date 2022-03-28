@@ -13,11 +13,15 @@ services:
       args:
         version: ${GRAPHDB_VERSION}
 
-    # Load all files from ../import in repo defined in ./graphdb-repo-config.ttl
-    entrypoint: [ "/opt/graphdb/dist/bin/preload", "--force", "--recursive", "-q", "/tmp", "-c", "/opt/graphdb/graphdb-repo-config.ttl", "/opt/graphdb/home/graphdb-import" ]
+    # Load all files from ./import in repo defined in ./graphdb-repo-config.ttl
+    # entrypoint: [ "/opt/graphdb/dist/bin/preload", "--force", "--recursive", "-q", "/tmp", "-c", "/opt/graphdb/graphdb-repo-config.ttl", "/opt/graphdb/home/graphdb-import" ]
+
+    # Load single file from ./import in repo define in ./graphdb-repo-config.ttl
+    entrypoint: [ "/opt/graphdb/dist/bin/preload", "-c", "/opt/graphdb/graphdb-repo-config.ttl", "/opt/graphdb/home/graphdb-import/test.ttl", "--force"]
 
     # Preload given file to existing repository (here "demo")
-    # entrypoint: [ "/opt/graphdb/dist/bin/preload", "-f", "-i", "demo", "/root/graphdb-import" ]
+    # entrypoint: [ "/opt/graphdb/dist/bin/preload", "-f", "-i", "testTimestamping", "/root/graphdb-import" ]
+
 
     environment: 
       GDB_JAVA_OPTS: >-
@@ -32,6 +36,10 @@ services:
         -Dreuse.vars.in.subselects=true
     volumes:
       # Change folders in the .env file or directly here
+      # host directory (local filesystem on linux): virtual directory
+      # Mounts files from your local file system (left) to a "virtual" docker governed filesystem (right).
+      # ${...} environment variables are defined in .env
       - ${GRAPHDB_HOME}:/opt/graphdb/home
       - ${IMPORT_FOLDER}:/opt/graphdb/home/graphdb-import
+      - ${IMPORT_FILE}:/opt/graphdb/home/graphdb-import/test.ttl
       - ${REPOSITORY_CONFIG_FILE}:/opt/graphdb/graphdb-repo-config.ttl

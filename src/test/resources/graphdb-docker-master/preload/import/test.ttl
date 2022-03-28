@@ -1,0 +1,7 @@
+<<<http://example.com/s/deleteThis1> <http://example.com/p/deleteThis1> <http://example.com/o/deleteThis1>>> <http://example.com/metadata/versioning#valid_from> "2022-03-28T12:00:00.000+01:00"^^xsd:dateTime .
+<<<http://example.com/s/deleteThis1> <http://example.com/p/deleteThis1> <http://example.com/o/deleteThis1>>> <http://example.com/metadata/versioning#valid_until> "9999-12-31T00:00:00.000+00:00"^^xsd:dateTime .
+<<<http://example.com/s/queryThis1> <http://example.com/p/queryThis1> <http://example.com/o/queryThis1>>> <http://example.com/metadata/versioning#valid_from> "2022-03-28T12:00:00.000+01:00"^^xsd:dateTime .
+<<<http://example.com/s/queryThis1> <http://example.com/p/queryThis1> <http://example.com/o/queryThis1>>> <http://example.com/metadata/versioning#valid_until> "9999-12-31T00:00:00.000+00:00"^^xsd:dateTime .
+
+
+
