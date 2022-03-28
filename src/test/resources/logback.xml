@@ -7,11 +7,11 @@
 	</appender>
 	
 	<root>
-		<level value="INFO" />
+		<level value="WARN" />
 		<appender-ref ref="Console"/>
 	</root>
 
-	<logger name="c.o.plugin.rdf-star-timestamping" level="INFO" additivity="false">
+	<!--<logger name="c.o.plugin.rdf-star-timestamping" level="INFO" additivity="false">
 		<appender-ref ref="Console"/>
-	</logger>
+	</logger> -->
 </configuration>

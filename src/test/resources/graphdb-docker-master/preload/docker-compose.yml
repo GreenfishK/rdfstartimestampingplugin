@@ -1,7 +1,10 @@
 version: "3"
 
+
 services:
   graphdb:
+    logging:
+        driver: none
     container_name: graphdb-preload
     # image: ontotext/graphdb:${GRAPHDB_VERSION}-ee
     build:

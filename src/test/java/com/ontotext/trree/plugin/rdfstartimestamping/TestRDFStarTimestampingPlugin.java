@@ -2,6 +2,7 @@ package com.ontotext.trree.plugin.rdfstartimestamping;
 
 import com.ontotext.graphdb.ConfigException;
 import com.ontotext.trree.sdk.ServerErrorException;
+import org.apache.commons.io.FileUtils;
 import org.eclipse.rdf4j.query.*;
 import org.eclipse.rdf4j.repository.RepositoryConnection;
 import org.eclipse.rdf4j.repository.RepositoryException;
@@ -12,7 +13,10 @@ import org.eclipse.rdf4j.rio.RDFParseException;
 import org.junit.*;
 import java.io.*;
 import java.net.Socket;
+import java.util.ArrayList;
 import java.util.Random;
+import java.util.stream.Stream;
+
 import static org.junit.Assert.*;
 
 /**
@@ -23,13 +27,8 @@ public class TestRDFStarTimestampingPlugin {
     private static RepositoryConnection sparqlRepoConnection;
     private static String repoId;
 
-    private static boolean available(int port) {
-        try (Socket ignored = new Socket("localhost", port)) {
-            return false;
-        } catch (IOException ignored) {
-            return true;
-        }
-    }
+    private static String logFilePath;
+    private static int lastLineNumber;
 
     private static void runDocker(File file) throws IOException, InterruptedException {
         Process process;
@@ -52,15 +51,42 @@ public class TestRDFStarTimestampingPlugin {
         PrintWriter printWriter = new PrintWriter(streamWriter);
 
         printWriter.println("cd src/test/resources/graphdb-docker-master/preload");
+        printWriter.println("echo \"Logs from GraphDB for preload disabled in docker-compose file ... \"");
         printWriter.println("docker-compose up --build");
         printWriter.println("docker-compose up -d");
 
         printWriter.println("cd ..");
         printWriter.println("docker-compose up -d");
+        //printWriter.println("docker-compose logs -f -t graphdb");
+        //printWriter.println("docker run --log-opt mode=non-blocking graphdb-docker-master_graphdb");
 
         printWriter.close();
 
         return tempScript;
+    }
+
+    private static int getLastLineNumber(String filePath) {
+        int lastLineNumber = -1;
+        try {
+            ArrayList<String> logs = (ArrayList<String>) FileUtils.readLines(new File(filePath), "UTF-8");
+            lastLineNumber = logs.size();
+        } catch (IOException e) {
+            System.err.println(e.getMessage());
+        }
+        return lastLineNumber;
+    }
+
+    private static ArrayList<String> getLog(String filePath) throws IOException {
+        ArrayList<String> mainLog = new ArrayList<>();
+        try {
+            FileReader fileReader = new FileReader(filePath);
+            BufferedReader buffer = new BufferedReader(fileReader);
+            buffer.lines().skip(lastLineNumber).forEachOrdered(mainLog::add);
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return mainLog;
     }
 
     private static File shutdownContainer() throws IOException {
@@ -81,6 +107,8 @@ public class TestRDFStarTimestampingPlugin {
     @BeforeClass
     public static void init() {
         repoId = "testTimestamping";
+        logFilePath = "target/graphdb-data/logs/main-2022-03-28.log";
+        lastLineNumber = getLastLineNumber(logFilePath);
 
         String queryEndpoint = String.format("http://localhost:7200/repositories/%s", repoId);
         String updateEndpoint = String.format("http://localhost:7200/repositories/%s/statements", repoId);
@@ -257,7 +285,9 @@ public class TestRDFStarTimestampingPlugin {
             sparqlRepoConnection.close();
             runDocker(shutdownContainer());
 
-            System.out.println(String.format("Connection shutdown and repository %s removed", repoId));
+            System.out.printf("Connection shutdown and repository %s removed%n", repoId);
+            System.out.println("==========================GraphDB main logs==========================");
+            getLog(logFilePath).forEach(System.out::println);
         } catch (NullPointerException e) {
             System.out.println("Connection is not open and can therefore be not closed.");
         } catch (IOException | InterruptedException e) {
