@@ -88,7 +88,7 @@ public class TestRDFStarTimestampingPlugin {
             //Start GraphDB server and create or re-create testTimestamping repository with docker-compose.
             runDocker(startContainer());
             System.out.println("\nPort not available yet available...");
-            Thread.sleep(15000);
+            Thread.sleep(20000);
 
             //Establish connection to SPARQL endpoint
             repo = new SPARQLRepository(queryEndpoint, updateEndpoint);

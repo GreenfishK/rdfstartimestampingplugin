@@ -3,7 +3,8 @@ Get a free graphdb-free standalone copy (zip file) and copy it into src/test/res
 the LICENSE.txt file.
 
 # Build Plugin
-Go to the root directory and execute `mvn clean package Dmaven.test.skip=true`. 
+Go to the root directory and execute `mvn clean package -Dmaven.test.skip=true` or `mvn clean package -DSkipTests` 
+(depending on your maven version).  
 This builds the .jar package into src/test/resources/graphdb-docker-master/free-edition. From there 
 it is picked up by docker-compose to place it into the docker image.
 
