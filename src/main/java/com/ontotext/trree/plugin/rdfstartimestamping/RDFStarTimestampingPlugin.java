@@ -153,8 +153,6 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 				getLogger().info("Requesting delete of triple: " + subject.stringValue()
 						+ " " + predicate.stringValue() + " " + object.stringValue());
 				deleteRequestTriples.add(new Triple(subject, predicate, object, context));
-				getLogger().info(String.valueOf(deleteRequestTriples.size()));
-				getLogger().info(deleteRequestTriples.toString());
 			}
 		}
 	}
@@ -209,6 +207,7 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 		}
 		if (value instanceof Resource)
 			return "<" + value + ">";
+		getLogger().info(value.getClass().toString());
 		getLogger().error("The entity's type is not support. It is none of: IRI, literal, BNode, Triple");
 		return null;
 	}
@@ -247,18 +246,18 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 				URL res = getClass().getClassLoader().getResource("timestampedDeleteTemplate");
 				assert res != null;
 				String template = "";
+				String context = "default";
 				if (Objects.equals(c, null)) {
 					template = "timestampedDeleteTemplate";
 					getLogger().info(s.stringValue() + " " + p.stringValue() + " " + o.stringValue());
 				}
 				else {
 					template = "timestampedDeleteWithContextTemplate";
+					context = entityToString(c);
 					getLogger().info(s.stringValue() + " " + p.stringValue() + " " + o.stringValue() + " " + c.stringValue());
-
 				}
-
 				updateStrings.add(MessageFormat.format(readAllBytes(template),
-						entityToString(c), entityToString(s), entityToString(p), entityToString(o)));
+						context, entityToString(s), entityToString(p), entityToString(o)));
 			}
 		}
 
