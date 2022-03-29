@@ -13,11 +13,10 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.text.MessageFormat;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Objects;
-import java.util.Scanner;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class RDFStarTimestampingPlugin extends PluginBase implements StatementListener, PluginTransactionListener, ContextUpdateHandler {
@@ -28,12 +27,12 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 	private Repository repo;
 	private ArrayList<String> updateStrings;
 	private boolean triplesTimestamped;
-	private ArrayList<Triple> deleteRequestTriples;
+	private HashSet<Triple> deleteRequestTriples;
 	private boolean anyDeleteRequestMatch;
 	public static final Object globalLock = new Object();
 
 
-	private class Triple {
+	private class Triple implements org.eclipse.rdf4j.model.Triple {
 		private Resource subject;
 		private IRI predicate;
 		private Value object;
@@ -44,6 +43,7 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 			this.predicate = predicate;
 			this.object = object;
 			this.context = context;
+
 		}
 
 		public Resource getSubject() {
@@ -60,6 +60,51 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 
 		public Resource getContext() {
 			return this.context;
+		}
+
+		@Override
+		public boolean equals(Object o) {
+			if (o == this)
+				return true;
+			if (!(o instanceof Triple)) {
+				return false;
+			}
+			Triple t = (Triple) o;
+
+			boolean equal = Objects.equals(t.subject.stringValue(), this.subject.stringValue()) &&
+					Objects.equals(t.predicate.stringValue(), this.predicate.stringValue()) &&
+					Objects.equals(t.object.stringValue(), this.object.stringValue());
+
+			if (t.context == null || this.context == null)
+				return equal;
+			else
+				return equal && Objects.equals(t.context.stringValue(), this.context.stringValue());
+		}
+
+
+		@Override
+		public String stringValue() {
+			return subject.stringValue() + " " + predicate.toString() + " " + object.toString();
+		}
+
+		@Override
+		public int hashCode() {
+			MessageDigest messageDigest = null;
+			String stringHash = "";
+			try {
+				messageDigest = MessageDigest.getInstance("SHA-256");
+
+				String stringToHash = subject.stringValue() + predicate.stringValue() + object.stringValue();
+				if (context != null)
+					stringToHash += context.stringValue();
+				messageDigest.update(stringToHash.getBytes());
+				stringHash = new String(messageDigest.digest());
+
+				return stringHash.hashCode();
+			} catch (NoSuchAlgorithmException e) {
+				e.printStackTrace();
+			}
+			return stringHash.hashCode();
 		}
 	}
 
@@ -78,7 +123,7 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 		this.getEndpoint = "http://localhost:7200/repositories/testTimestamping";
 		this.postEndpoint = "http://localhost:7200/repositories/testTimestamping/statements";
 		updateStrings = new ArrayList<>();
-		deleteRequestTriples = new ArrayList<>();
+		deleteRequestTriples = new HashSet<>();
 		triplesTimestamped = false;
 		anyDeleteRequestMatch = false;
 
@@ -108,6 +153,8 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 				getLogger().info("Requesting delete of triple: " + subject.stringValue()
 						+ " " + predicate.stringValue() + " " + object.stringValue());
 				deleteRequestTriples.add(new Triple(subject, predicate, object, context));
+				getLogger().info(String.valueOf(deleteRequestTriples.size()));
+				getLogger().info(deleteRequestTriples.toString());
 			}
 		}
 	}
@@ -160,9 +207,8 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 			Value o = ((SimpleTriple) value).getObject();
 			return "<<" + entityToString(s) + " " + entityToString(p) + " " + entityToString(o) + ">>";
 		}
-		if (value instanceof Resource) {
+		if (value instanceof Resource)
 			return "<" + value + ">";
-		}
 		getLogger().error("The entity's type is not support. It is none of: IRI, literal, BNode, Triple");
 		return null;
 	}

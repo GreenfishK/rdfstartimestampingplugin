@@ -283,9 +283,9 @@ public class TestRDFStarTimestampingPlugin {
             int c = 0;
             while (result.hasNext()) {
                 BindingSet bs = result.next();
-                String s = bs.getValue("s").stringValue();
-                String p = bs.getValue("p").stringValue();
-                String o = bs.getValue("o").stringValue();
+                String s = bs.getValue("s").toString();
+                String p = bs.getValue("p").toString();
+                String o = bs.getValue("o").toString();
                 String t = "<<http://example.com/s/deleteThis1 http://example.com/p/deleteThis1 http://example.com/o/deleteThis1>>";
                 if (s.startsWith(t)) {
                     c++;
