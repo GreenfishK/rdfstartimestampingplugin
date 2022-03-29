@@ -207,7 +207,6 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 		}
 		if (value instanceof Resource)
 			return "<" + value + ">";
-		getLogger().info(value.getClass().toString());
 		getLogger().error("The entity's type is not support. It is none of: IRI, literal, BNode, Triple");
 		return null;
 	}
