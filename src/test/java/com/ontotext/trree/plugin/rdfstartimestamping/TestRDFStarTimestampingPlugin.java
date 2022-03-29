@@ -89,7 +89,7 @@ public class TestRDFStarTimestampingPlugin {
     }
 
     @Test
-    //@Ignore
+    @Ignore
     public void insertSingleTripleWithContextTest() throws InterruptedException {
         defaultGraph = false;
         String triple = "<http://example.com/s/insertThis1> <http://example.com/p/insertThis1> <http://example.com/o/insertThis1>";
@@ -109,7 +109,7 @@ public class TestRDFStarTimestampingPlugin {
     }
 
     @Test
-    //@Ignore
+    @Ignore
     public void insertMultipleTriplesWithContextTest() throws InterruptedException {
         defaultGraph = false;
         String triple1 = "<http://example.com/s/insertThis2> <http://example.com/p/insertThis2> <http://example.com/o/insertThis2>";
@@ -135,37 +135,49 @@ public class TestRDFStarTimestampingPlugin {
     }
 
     @Test
-    @Ignore
+    //@Ignore
     public void deleteSingleTripleWithContextTest() throws InterruptedException {
         defaultGraph = false;
-        String updateString = "insert data { graph <http://example.com/testGraph>" +
-                " {<http://example.com/s/v12> <http://example.com/p/v22> <http://example.com/o/v32> }" +
+        /*String updateString = "insert data { graph <http://example.com/testGraph>" +
+                " {<http://example.com/s/deleteThis2> <http://example.com/p/deleteThis2> <http://example.com/o/deleteThis2> }" +
                 "" +
                 "}";
         sparqlRepoConnection.begin();
         sparqlRepoConnection.prepareUpdate(updateString).execute();
         sparqlRepoConnection.commit();
 
-        Thread.sleep(5000);
+        Thread.sleep(5000);*/
 
         //Delete
-        updateString = "delete data { graph <http://example.com/testGraph>" +
-                " {<http://example.com/s/v12> <http://example.com/p/v22> <http://example.com/o/v32> }" +
-                "" +
-                "}";
+        String triple = "<http://example.com/s/deleteThis2> <http://example.com/p/deleteThis2> <http://example.com/o/deleteThis2>";
+        String updateString = String.format("delete data { graph <http://example.com/testGraph> { %s }}", triple);
         sparqlRepoConnection.begin();
         sparqlRepoConnection.prepareUpdate(updateString).execute();
         sparqlRepoConnection.commit();
 
         Thread.sleep(5000);
 
-        TupleQuery query = sparqlRepoConnection.prepareTupleQuery("select * from <http://example.com/testGraph> { ?s ?p ?o }");
+        TupleQuery query = sparqlRepoConnection.prepareTupleQuery(String.format("select * { <<%s>> ?x ?y }", triple));
         try (TupleQueryResult result = query.evaluate()) {
-            assertTrue("Number of triples should not change", result.hasNext());
+            assertTrue("Number of triples should not change in the default graph", result.hasNext());
+        }
+
+        query = sparqlRepoConnection.prepareTupleQuery(String.format("select * from <http://example.com/testGraph> { <<%s>> ?x ?y }", triple));
+
+        try (TupleQueryResult result = query.evaluate()) {
+            assertTrue("Number of triples should not change in graph <http://example.com/testGraph>", result.hasNext());
+            int c = 0;
             while (result.hasNext()) {
-                String timestamp = result.next().getValue("o").stringValue();
-                assertNotEquals("9999-12-31T00:00:00.000+00:00", timestamp);
+                BindingSet bs = result.next();
+                String s = bs.getValue("s").toString();
+                String p = bs.getValue("p").toString();
+                String o = bs.getValue("o").toString();
+                c++;
+                System.out.println(s + " " + p + " " + o);
+                assertNotEquals("9999-12-31T00:00:00.000+00:00", o);
+
             }
+            assertEquals(2, c);
         }
     }
 
