@@ -5,8 +5,8 @@ the LICENSE.txt file.
 # Build Plugin
 Go to the root directory and execute `mvn clean package -Dmaven.test.skip=true` or `mvn clean package -DSkipTests` 
 (depending on your maven version).  
-This builds the .jar package into src/test/resources/graphdb-docker-master/free-edition. From there 
-it is picked up by docker-compose to place it into the docker image.
+This builds the .jar package into target/. From there it is picked up by docker-compose to place it into the docker image. 
+You don't need to execute docker-compose manually, this execution is part of the unit tests.
 
 # Execute tests
 Run the test file com.ontotext.trree.plugin.rdfstartimestamping.TestRDFStarTimestampingPlugin with Java 8 - corretto 1.8.
