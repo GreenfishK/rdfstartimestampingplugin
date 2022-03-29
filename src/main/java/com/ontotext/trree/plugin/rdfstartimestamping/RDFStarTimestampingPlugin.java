@@ -7,12 +7,8 @@ import org.eclipse.rdf4j.repository.Repository;
 import org.eclipse.rdf4j.repository.RepositoryConnection;
 import org.eclipse.rdf4j.repository.sparql.SPARQLRepository;
 
-import javax.management.StringValueExp;
 import java.io.*;
-import java.net.URISyntaxException;
 import java.net.URL;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.text.MessageFormat;
@@ -132,19 +128,19 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 	@Override
 	public Resource[] getUpdateContexts() {
 		getLogger().info("getUpdateContexts");
-		Resource[] res = new Resource[3];
+		Resource[] res = new Resource[2];
+
 		//TODO: add other contexts from db (apart from the default context/no context).
 		res[0] = () -> "";
-		res[1] = () -> "<http://example.com/testGraph>";
-		res[2] = () -> "http://example.com/testGraph";
+		res[1] = () -> "http://example.com/testGraph";
 
 		return res;
 	}
 
 	@Override
-	public void handleContextUpdate(Resource subject, IRI predicate, Value object, Resource context, boolean b, PluginConnection pluginConnection) {
+	public void handleContextUpdate(Resource subject, IRI predicate, Value object, Resource context, boolean isAdded, PluginConnection pluginConnection) {
 		getLogger().info("Handling update");
-		if (b)
+		if (isAdded)
 			getLogger().info("Adding and timestamping triple");
 		else {
 			if (!triplesTimestamped) {
