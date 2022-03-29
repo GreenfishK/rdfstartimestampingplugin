@@ -89,7 +89,6 @@ public class TestRDFStarTimestampingPlugin {
     }
 
     @Test
-    @Ignore
     public void insertSingleTripleWithContextTest() throws InterruptedException {
         defaultGraph = false;
         String triple = "<http://example.com/s/insertThis1> <http://example.com/p/insertThis1> <http://example.com/o/insertThis1>";
@@ -109,7 +108,6 @@ public class TestRDFStarTimestampingPlugin {
     }
 
     @Test
-    @Ignore
     public void insertMultipleTriplesWithContextTest() throws InterruptedException {
         defaultGraph = false;
         String triple1 = "<http://example.com/s/insertThis2> <http://example.com/p/insertThis2> <http://example.com/o/insertThis2>";
@@ -135,7 +133,6 @@ public class TestRDFStarTimestampingPlugin {
     }
 
     @Test
-    //@Ignore
     public void deleteSingleTripleWithContextTest() throws InterruptedException {
         defaultGraph = false;
 
@@ -204,7 +201,6 @@ public class TestRDFStarTimestampingPlugin {
     }
 
     @Test
-    @Ignore
     public void insertSingleTripleTest() throws InterruptedException {
         defaultGraph = true;
         String updateString = "insert data { <http://example.com/s/v1> <http://example.com/p/v2> <http://example.com/o/v3> }";
@@ -229,7 +225,6 @@ public class TestRDFStarTimestampingPlugin {
     }
 
     @Test
-    @Ignore
     public void insertMultipleTriplesTest() throws InterruptedException {
         defaultGraph = true;
         String updateString = "insert data { " +
@@ -258,7 +253,6 @@ public class TestRDFStarTimestampingPlugin {
     }
 
     @Test
-    //@Ignore
     public void deleteSingleTripleTest() throws InterruptedException {
         defaultGraph = true;
         String updateString;
