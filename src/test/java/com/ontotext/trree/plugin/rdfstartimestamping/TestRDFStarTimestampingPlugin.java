@@ -12,10 +12,10 @@ import org.eclipse.rdf4j.rio.RDFHandlerException;
 import org.eclipse.rdf4j.rio.RDFParseException;
 import org.junit.*;
 import java.io.*;
-import java.net.Socket;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Random;
-import java.util.stream.Stream;
+
 
 import static org.junit.Assert.*;
 
@@ -34,7 +34,8 @@ public class TestRDFStarTimestampingPlugin {
     @BeforeClass
     public static void init() {
         repoId = "testTimestamping";
-        logFilePath = "target/graphdb-data/logs/main-2022-03-28.log";
+        DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+        logFilePath = String.format("target/graphdb-data/logs/main-%s.log", dtf.format(LocalDateTime.now()));
         lastLineNumber = getLastLineNumber(logFilePath);
 
         String queryEndpoint = String.format("http://localhost:7200/repositories/%s", repoId);
@@ -78,7 +79,7 @@ public class TestRDFStarTimestampingPlugin {
             }
 
 
-        } catch (RDFHandlerException | RDFParseException | RepositoryConfigException | RepositoryException | IOException | InterruptedException e) {
+        } catch (RDFHandlerException | RDFParseException | RepositoryConfigException | ServerErrorException | RepositoryException | IOException | InterruptedException e) {
             System.err.println(e.getClass() + ":" + e.getMessage());
             e.printStackTrace();
             throw new ConfigException("Tests cannot start. " +
