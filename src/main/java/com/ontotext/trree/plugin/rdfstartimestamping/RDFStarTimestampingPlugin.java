@@ -144,14 +144,16 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 	@Override
 	public void handleContextUpdate(Resource subject, IRI predicate, Value object, Resource context, boolean b, PluginConnection pluginConnection) {
 		getLogger().info("Handling update");
-		if (b) {
+		if (b)
 			getLogger().info("Adding and timestamping triple");
-
-		}
 		else {
 			if (!triplesTimestamped) {
+				String cont = "default";
+				if (context != null)
+					cont = context.stringValue();
 				getLogger().info("Requesting delete of triple: " + subject.stringValue()
-						+ " " + predicate.stringValue() + " " + object.stringValue());
+						+ " " + predicate.stringValue() + " " + object.stringValue()
+						+ " within context: " + cont);
 				deleteRequestTriples.add(new Triple(subject, predicate, object, context));
 			}
 		}
@@ -169,13 +171,15 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 			URL res = getClass().getClassLoader().getResource("timestampedInsertTemplate");
 			assert res != null;
 			String template = "";
+			String cont = "default";
 			if (Objects.equals(c, null))
 				template = "timestampedInsertTemplate";
-			 else
+			 else {
 				template = "timestampedInsertWithContextTemplate";
-
+				cont = entityToString(c);
+			}
 			updateStrings.add(MessageFormat.format(readAllBytes(template),
-					entityToString(c), entityToString(s), entityToString(p), entityToString(o)));
+					cont, entityToString(s), entityToString(p), entityToString(o)));
 		}
 		return false;
 	}

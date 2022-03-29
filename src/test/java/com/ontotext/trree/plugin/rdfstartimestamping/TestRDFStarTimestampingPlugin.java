@@ -89,10 +89,11 @@ public class TestRDFStarTimestampingPlugin {
     }
 
     @Test
-    @Ignore
+    //@Ignore
     public void insertSingleTripleWithContextTest() throws InterruptedException {
         defaultGraph = false;
-        String updateString = "insert data { graph <http://example.com/testGraph> {<http://example.com/s/v1> <http://example.com/p/v2> <http://example.com/o/v3> }}";
+        String triple = "<http://example.com/s/insertThis1> <http://example.com/p/insertThis1> <http://example.com/o/insertThis1>";
+        String updateString = String.format("insert data { graph <http://example.com/testGraph> {%s}}", triple);
         sparqlRepoConnection.begin();
         sparqlRepoConnection.prepareUpdate(updateString).execute();
         sparqlRepoConnection.commit();
@@ -100,28 +101,22 @@ public class TestRDFStarTimestampingPlugin {
         //Wait for plugin to insert triples. This is managed by the server.
         Thread.sleep(5000);
 
-        TupleQuery query = sparqlRepoConnection.prepareTupleQuery("select * from <http://example.com/testGraph> { ?s ?p ?o }");
+        TupleQuery query = sparqlRepoConnection.prepareTupleQuery(String.format("select * from <http://example.com/testGraph> { <<%s>> ?x ?y }",triple));
         try (TupleQueryResult result = query.evaluate()) {
             assertTrue("Must have two nested triples in the result", result.hasNext());
             assertEquals(2, result.stream().count());
-            while (result.hasNext()) {
-                BindingSet bindings = result.next();
-                for (String bindingName : result.getBindingNames()) {
-                    System.out.println(bindingName + ": " + bindings.getValue(bindingName));
-                }
-            }
         }
     }
 
     @Test
-    @Ignore
+    //@Ignore
     public void insertMultipleTriplesWithContextTest() throws InterruptedException {
         defaultGraph = false;
-        String updateString = "insert data { graph <http://example.com/testGraph>" +
-                " {<http://example.com/s/v11> <http://example.com/p/v21> <http://example.com/o/v31> ." +
-                " <http://example.com/s/v12> <http://example.com/p/v22> <http://example.com/o/v32> }" +
-                "" +
-                "}";
+        String triple1 = "<http://example.com/s/insertThis2> <http://example.com/p/insertThis2> <http://example.com/o/insertThis2>";
+        String triple2 = "<http://example.com/s/insertThis3> <http://example.com/p/insertThis3> <http://example.com/o/insertThis3>";
+
+        String updateString = String.format("insert data { graph <http://example.com/testGraph> {%s . %s .}}",
+                triple1, triple2);
         sparqlRepoConnection.begin();
         sparqlRepoConnection.prepareUpdate(updateString).execute();
         sparqlRepoConnection.commit();
@@ -129,16 +124,13 @@ public class TestRDFStarTimestampingPlugin {
         //Wait for plugin to insert triples. This is managed by the server.
         Thread.sleep(5000);
 
-        TupleQuery query = sparqlRepoConnection.prepareTupleQuery("select * from <http://example.com/testGraph> { ?s ?p ?o }");
+        TupleQuery query = sparqlRepoConnection.prepareTupleQuery(
+                String.format("select * from <http://example.com/testGraph> { {<<%s>> ?x ?y} union {<<%s>> ?x ?y} }",
+                        triple1, triple2));
         try (TupleQueryResult result = query.evaluate()) {
-            assertTrue("Must have two nested triples in the result", result.hasNext());
+            assertTrue("Must have four nested triples in the result, two for each triple.", result.hasNext());
             assertEquals(4, result.stream().count());
-            while (result.hasNext()) {
-                BindingSet bindings = result.next();
-                for (String bindingName : result.getBindingNames()) {
-                    System.out.println(bindingName + ": " + bindings.getValue(bindingName));
-                }
-            }
+
         }
     }
 
