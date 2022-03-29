@@ -385,7 +385,6 @@ public class TestRDFStarTimestampingPlugin {
 
         printWriter.println("cd src/test/resources/graphdb-docker-master/preload");
         printWriter.println("echo \"Logs from GraphDB for preload disabled in docker-compose file ... \"");
-        //printWriter.println("docker-compose up --build");
         printWriter.println("docker-compose up -d");
 
         printWriter.println("cd ..");
