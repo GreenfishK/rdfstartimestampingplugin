@@ -24,7 +24,7 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 	private ArrayList<String> updateStrings;
 	private boolean triplesTimestamped;
 	private HashSet<Triple> deleteRequestTriples;
-	private boolean anyDeleteRequestMatch;
+	private boolean statementRemoved;
 	public static final Object globalLock = new Object();
 
 
@@ -121,7 +121,7 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 		updateStrings = new ArrayList<>();
 		deleteRequestTriples = new HashSet<>();
 		triplesTimestamped = false;
-		anyDeleteRequestMatch = false;
+		statementRemoved = false;
 
 	}
 
@@ -139,9 +139,9 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 
 	@Override
 	public void handleContextUpdate(Resource subject, IRI predicate, Value object, Resource context, boolean isAdded, PluginConnection pluginConnection) {
-		getLogger().info("Handling update");
+		getLogger().info("Handle update");
 		if (isAdded)
-			getLogger().info("Adding and timestamping triple");
+			getLogger().info("Start adding and timestamping triple procedure");
 		else {
 			if (!triplesTimestamped) {
 				String cont = "default";
@@ -161,7 +161,7 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 		Value p = pluginConnection.getEntities().get(predicate);
 		Value o = pluginConnection.getEntities().get(object);
 		Value c = pluginConnection.getEntities().get(context);
-		getLogger().info("Statement added:" + s + " " + p + " " + o + " within context:" + c);
+		getLogger().info("Add statement:" + s + " " + p + " " + o + " within context:" + c);
 
 		if (!triplesTimestamped) {
 			URL res = getClass().getClassLoader().getResource("timestampedInsertTemplate");
@@ -186,9 +186,9 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 		Value p = pluginConnection.getEntities().get(predicate);
 		Value o = pluginConnection.getEntities().get(object);
 		Value c = pluginConnection.getEntities().get(context);
-		getLogger().info("Statement removed:" + s + " " + p + " " + o + " within context:" + c);
+		getLogger().info("Remove statement:" + s + " " + p + " " + o + " within context:" + c);
 
-		anyDeleteRequestMatch = true;
+		statementRemoved = true;
 		return false;
 	}
 
@@ -227,15 +227,19 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 
 	@Override
 	public void transactionStarted(PluginConnection pluginConnection) {
-		getLogger().info("transactionStarted");
-	}
+		getLogger().info("Start transaction");
 
-	@Override
-	public void transactionCommit(PluginConnection pluginConnection) {
-		getLogger().info("transactionCommit");
+		/* First two conditions: if there were requests for deletion but no triples were actually removed
+		   this means that the user posted a normal delete request but no triple was actually deleted
+		   as the underlying structure encompasses only nested triples. These are the triples the plugin wants
+		   to capture. Simple triples that were actually removed can only appear due to an insert request where
+		   the plugin would replace the inserted triple by nested triples, thus remove it. These we do not want to
+		   capture.
+		   Third condition: Triples must have not been previously timestamped by the plugin.
+		*/
 
-		if(!anyDeleteRequestMatch && !deleteRequestTriples.isEmpty() && !triplesTimestamped) {
-			getLogger().info("Preparing triples to outdate");
+		if(!statementRemoved && !deleteRequestTriples.isEmpty() && !triplesTimestamped) {
+			getLogger().info("Prepare triples to outdate");
 			for (Triple t: deleteRequestTriples) {
 				Value c = t.getContext();
 				Value s = t.getSubject();
@@ -258,25 +262,38 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 				updateStrings.add(MessageFormat.format(readAllBytes(template),
 						context, entityToString(s), entityToString(p), entityToString(o)));
 			}
+			deleteRequestTriples.clear();
 		}
+	}
+
+	@Override
+	public void transactionCommit(PluginConnection pluginConnection) {
+		getLogger().info("Commit transaction");
 
 		synchronized (globalLock) {
-
 			if (!updateStrings.isEmpty() && !triplesTimestamped) {
 				Thread newThread = new Thread(() -> {
-					getLogger().info("Timestamping previously added triple");
+					getLogger().info("Timestamp previously added triple");
 					repo = new SPARQLRepository(postEndpoint);
 					try (RepositoryConnection connection = repo.getConnection()) {
 						triplesTimestamped = true;
-						//repo.init();
 						connection.begin();
 						for (String updateString : updateStrings) {
 							getLogger().info(updateString);
 							connection.prepareUpdate(updateString).execute();
 						}
 						connection.commit();
-						getLogger().info("Triple timestamped");
+						// --> call Main thread
+						// --> complete transaction
+						// --> Handle update
+						// --> start transaction
+						// --> Remove triple
+						// --> Add nested triple
+						// --> commit transaction
+						// --> complete transaction
+						// --> back to this thread
 					} finally {
+						getLogger().info("Clear list of update strings and reset triplesTimestamped flag.");
 						updateStrings.clear();
 						triplesTimestamped = false;
 					}
@@ -288,14 +305,14 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 
 	@Override
 	public void transactionCompleted(PluginConnection pluginConnection) {
-		getLogger().info("transactionCompleted");
-		anyDeleteRequestMatch = false;
+		getLogger().info("Complete transaction");
+		statementRemoved = false;
 
 	}
 
 	@Override
 	public void transactionAborted(PluginConnection pluginConnection) {
-		getLogger().info("transactionAborted");
+		getLogger().info("Abort transaction");
 
 	}
 

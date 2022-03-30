@@ -176,6 +176,12 @@ public class TestRDFStarTimestampingPlugin {
     }
 
     @Test
+    public void deleteNonExistingWithContextTest() {
+        defaultGraph = true;
+        fail("not yet implemented");
+    }
+
+    @Test
     public void deleteAllTriplesWithContextTest() {
         defaultGraph = false;
         fail("not yet implemented");
@@ -310,6 +316,12 @@ public class TestRDFStarTimestampingPlugin {
     }
 
     @Test
+    public void deleteNonExistingTest() {
+        defaultGraph = true;
+        fail("not yet implemented");
+    }
+
+    @Test
     public void deleteAllTriplesTest() {
         defaultGraph = true;
         fail("not yet implemented");
@@ -328,12 +340,37 @@ public class TestRDFStarTimestampingPlugin {
     }
 
     @Test
-    public void insertDeleteReInsertTest() {
+    public void insertDeleteReInsertDeleteTest() throws InterruptedException {
         defaultGraph = true;
-        fail("not yet implemented");
+        String triple = "<http://example.com/s/reinsertThis1> <http://example.com/p/reinsertThis1> <http://example.com/o/reinsertThis1>";
+        String updateString = String.format("insert data {%s}; delete data {%s}; insert data {%s}; delete data {%s}",
+                triple, triple, triple, triple);
+        sparqlRepoConnection.begin();
+        sparqlRepoConnection.prepareUpdate(updateString).execute();
+        sparqlRepoConnection.commit();
+
+        //Wait for plugin to insert triples. This is managed by the server.
+        Thread.sleep(5000);
+
+        TupleQuery query = sparqlRepoConnection.prepareTupleQuery(String.format("select * { <<<<%s>> ?x ?y>> ?a ?b }",triple));
+        try (TupleQueryResult result = query.evaluate()) {
+            assertTrue("Must have two double-nested triples in the result", result.hasNext());
+            assertEquals(2, result.stream().count());
+        }
+        try (TupleQueryResult result = query.evaluate()) {
+            while (result.hasNext()) {
+                BindingSet bs = result.next();
+                //String s = bs.getValue("s").stringValue();
+                String p = bs.getValue("a").stringValue();
+                String o = bs.getValue("b").stringValue();
+                System.out.println(p + " " + o);
+                assertNotEquals("9999-12-31T00:00:00.000+00:00", o);
+
+            }
+        }
+
 
     }
-
 
     @After
     public void clearTestGraph() {
