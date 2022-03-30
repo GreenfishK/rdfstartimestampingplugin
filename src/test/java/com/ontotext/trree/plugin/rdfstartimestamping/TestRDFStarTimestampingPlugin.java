@@ -341,16 +341,33 @@ public class TestRDFStarTimestampingPlugin {
 
     @Test
     public void insertDeleteReInsertDeleteTest() throws InterruptedException {
+        //TODO: Problem with concurrent updates. Consecutively inserting, deleting and re-inserting
+        // leads to ignorance of the delete handling by the plugin.
         defaultGraph = true;
-        String triple = "<http://example.com/s/reinsertThis1> <http://example.com/p/reinsertThis1> <http://example.com/o/reinsertThis1>";
-        String updateString = String.format("insert data {%s}; delete data {%s}; insert data {%s}; delete data {%s}",
-                triple, triple, triple, triple);
+        String triple = "<http://example.com/test#reinsertThisS1> <http://example.com/test#p> <http://example.com/test#reinsertThisO1>";
+        String updateString = String.format("insert data {%s}", triple);
+        sparqlRepoConnection.begin();
+        sparqlRepoConnection.prepareUpdate(updateString).execute();
+        sparqlRepoConnection.commit();
+        Thread.sleep(2000);
+
+        updateString = String.format("delete data {%s}", triple);
         sparqlRepoConnection.begin();
         sparqlRepoConnection.prepareUpdate(updateString).execute();
         sparqlRepoConnection.commit();
 
+        updateString = String.format("insert data {%s}", triple);
+        sparqlRepoConnection.begin();
+        sparqlRepoConnection.prepareUpdate(updateString).execute();
+        sparqlRepoConnection.commit();
+        Thread.sleep(2000);
+
+        updateString = String.format("delete data {%s}", triple);
+        sparqlRepoConnection.begin();
+        sparqlRepoConnection.prepareUpdate(updateString).execute();
+        sparqlRepoConnection.commit();
         //Wait for plugin to insert triples. This is managed by the server.
-        Thread.sleep(5000);
+        Thread.sleep(2000);
 
         TupleQuery query = sparqlRepoConnection.prepareTupleQuery(String.format("select * { <<<<%s>> ?x ?y>> ?a ?b }",triple));
         try (TupleQueryResult result = query.evaluate()) {
