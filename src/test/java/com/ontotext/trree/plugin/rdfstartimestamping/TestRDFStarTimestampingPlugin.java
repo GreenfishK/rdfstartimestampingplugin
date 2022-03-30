@@ -100,10 +100,10 @@ public class TestRDFStarTimestampingPlugin {
         //Wait for plugin to insert triples. This is managed by the server.
         Thread.sleep(5000);
 
-        TupleQuery query = sparqlRepoConnection.prepareTupleQuery(String.format("select * from <http://example.com/testGraph> { <<%s>> ?x ?y }",triple));
+        TupleQuery query = sparqlRepoConnection.prepareTupleQuery(String.format("select * from <http://example.com/testGraph> { <<<<%s>> ?x ?y >> ?a ?b }",triple));
         try (TupleQueryResult result = query.evaluate()) {
-            assertTrue("Must have two nested triples in the result", result.hasNext());
-            assertEquals(2, result.stream().count());
+            assertTrue("Must have one double-nested triple in the result", result.hasNext());
+            assertEquals(1, result.stream().count());
         }
     }
 
@@ -123,11 +123,11 @@ public class TestRDFStarTimestampingPlugin {
         Thread.sleep(5000);
 
         TupleQuery query = sparqlRepoConnection.prepareTupleQuery(
-                String.format("select * from <http://example.com/testGraph> { {<<%s>> ?x ?y} union {<<%s>> ?x ?y} }",
+                String.format("select * from <http://example.com/testGraph> { {<<<<%s>> ?x ?y>> ?a ?b} union {<<<<%s>> ?x ?y>> ?a ?b} }",
                         triple1, triple2));
         try (TupleQueryResult result = query.evaluate()) {
-            assertTrue("Must have four nested triples in the result, two for each triple.", result.hasNext());
-            assertEquals(4, result.stream().count());
+            assertTrue("Must two double-nested triples in the result.", result.hasNext());
+            assertEquals(2, result.stream().count());
 
         }
     }
@@ -145,12 +145,12 @@ public class TestRDFStarTimestampingPlugin {
 
         Thread.sleep(5000);
 
-        TupleQuery query = sparqlRepoConnection.prepareTupleQuery(String.format("select * { <<%s>> ?x ?y }", triple));
+        TupleQuery query = sparqlRepoConnection.prepareTupleQuery(String.format("select * { <<<<%s>> ?x ?y>> ?a ?b }", triple));
         try (TupleQueryResult result = query.evaluate()) {
             assertTrue("Number of triples should not change in the default graph", result.hasNext());
         }
 
-        query = sparqlRepoConnection.prepareTupleQuery(String.format("select * from <http://example.com/testGraph> { <<%s>> ?x ?y }", triple));
+        query = sparqlRepoConnection.prepareTupleQuery(String.format("select * from <http://example.com/testGraph> { <<<<%s>> ?x ?y>> ?a ?b }", triple));
 
         try (TupleQueryResult result = query.evaluate()) {
             assertTrue("Number of triples should not change in graph <http://example.com/testGraph>.", result.hasNext());
@@ -158,14 +158,14 @@ public class TestRDFStarTimestampingPlugin {
             while (result.hasNext()) {
                 BindingSet bs = result.next();
                 //String s = bs.getValue("s").stringValue();
-                String p = bs.getValue("x").stringValue();
-                String o = bs.getValue("y").stringValue();
+                String p = bs.getValue("a").stringValue();
+                String o = bs.getValue("b").stringValue();
                 c++;
                 System.out.println(p + " " + o);
                 assertNotEquals("9999-12-31T00:00:00.000+00:00", o);
 
             }
-            assertEquals(2, c);
+            assertEquals(1, c);
         }
     }
 
@@ -214,10 +214,10 @@ public class TestRDFStarTimestampingPlugin {
         //Wait for plugin to insert triples. This is managed by the server.
         Thread.sleep(5000);
 
-        TupleQuery query = sparqlRepoConnection.prepareTupleQuery(String.format("select * { <<%s>> ?x ?y }",triple));
+        TupleQuery query = sparqlRepoConnection.prepareTupleQuery(String.format("select * { <<<<%s>> ?x ?y>> ?a ?b }",triple));
         try (TupleQueryResult result = query.evaluate()) {
-            assertTrue("Must have two nested triples in the result", result.hasNext());
-            assertEquals(2, result.stream().count());
+            assertTrue("Must have one double-nested triples in the result", result.hasNext());
+            assertEquals(1, result.stream().count());
         }
     }
 
@@ -235,10 +235,10 @@ public class TestRDFStarTimestampingPlugin {
         Thread.sleep(5000);
 
         TupleQuery query = sparqlRepoConnection.prepareTupleQuery(
-                String.format("select * { {<<%s>> ?x ?y} union {<<%s>> ?x ?y} }", triple1, triple2));
+                String.format("select * { {<<<<%s>> ?x ?y>> ?a ?b} union {<<<<%s>> ?x ?y>> ?a ?b} }", triple1, triple2));
         try (TupleQueryResult result = query.evaluate()) {
-            assertTrue("Must have four nested triples in the result, two for each triple.", result.hasNext());
-            assertEquals(4, result.stream().count());
+            assertTrue("Must have two double-nested triples in the result.", result.hasNext());
+            assertEquals(2, result.stream().count());
         }
     }
 
@@ -255,7 +255,7 @@ public class TestRDFStarTimestampingPlugin {
 
         Thread.sleep(5000);
 
-        TupleQuery query = sparqlRepoConnection.prepareTupleQuery(String.format("select * { <<%s>> ?x ?y }", triple));
+        TupleQuery query = sparqlRepoConnection.prepareTupleQuery(String.format("select * { <<<<%s>> ?x ?y>> ?a ?b }", triple));
 
         try (TupleQueryResult result = query.evaluate()) {
             assertTrue("Number of triples should not change in the default graph.", result.hasNext());
@@ -263,14 +263,14 @@ public class TestRDFStarTimestampingPlugin {
             while (result.hasNext()) {
                 BindingSet bs = result.next();
                 //String s = bs.getValue("s").stringValue();
-                String p = bs.getValue("x").stringValue();
-                String o = bs.getValue("y").stringValue();
+                String p = bs.getValue("a").stringValue();
+                String o = bs.getValue("b").stringValue();
                 c++;
                 System.out.println(p + " " + o);
                 assertNotEquals("9999-12-31T00:00:00.000+00:00", o);
 
             }
-            assertEquals(2, c);
+            assertEquals(1, c);
         }
     }
 
@@ -290,7 +290,7 @@ public class TestRDFStarTimestampingPlugin {
         Thread.sleep(5000);
 
         TupleQuery query = sparqlRepoConnection.prepareTupleQuery(
-                String.format("select * { {<<%s>> ?x ?y} union {<<%s>> ?x ?y} }", triple1, triple2));
+                String.format("select * { {<<<<%s>> ?x ?y>> ?a ?b} union {<<<<%s>> ?x ?y>> ?a ?b} }", triple1, triple2));
 
         try (TupleQueryResult result = query.evaluate()) {
             assertTrue("Number of triples should not change in the default graph.", result.hasNext());
@@ -298,14 +298,14 @@ public class TestRDFStarTimestampingPlugin {
             while (result.hasNext()) {
                 BindingSet bs = result.next();
                 //String s = bs.getValue("s").stringValue();
-                String p = bs.getValue("x").stringValue();
-                String o = bs.getValue("y").stringValue();
+                String p = bs.getValue("a").stringValue();
+                String o = bs.getValue("b").stringValue();
                 c++;
                 System.out.println(p + " " + o);
                 assertNotEquals("9999-12-31T00:00:00.000+00:00", o);
 
             }
-            assertEquals(4, c);
+            assertEquals(2, c);
         }
     }
 
