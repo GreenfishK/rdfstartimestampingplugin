@@ -349,14 +349,14 @@ public class TestRDFStarTimestampingPlugin {
         sparqlRepoConnection.begin();
         sparqlRepoConnection.prepareUpdate(updateString).execute();
         sparqlRepoConnection.commit();
-        //Thread.sleep(2000);
+        //Thread.sleep(500);
 
         updateString = String.format("delete data {%s}", triple);
         sparqlRepoConnection.begin();
         sparqlRepoConnection.prepareUpdate(updateString).execute();
         sparqlRepoConnection.commit();
 
-        updateString = String.format("insert data {%s}", triple);
+        /*updateString = String.format("insert data {%s}", triple);
         sparqlRepoConnection.begin();
         sparqlRepoConnection.prepareUpdate(updateString).execute();
         sparqlRepoConnection.commit();
@@ -366,13 +366,13 @@ public class TestRDFStarTimestampingPlugin {
         sparqlRepoConnection.begin();
         sparqlRepoConnection.prepareUpdate(updateString).execute();
         sparqlRepoConnection.commit();
-        //Wait for plugin to insert triples. This is managed by the server.
+        //Wait for plugin to insert triples. This is managed by the server.*/
         Thread.sleep(2000);
 
         TupleQuery query = sparqlRepoConnection.prepareTupleQuery(String.format("select * { <<<<%s>> ?x ?y>> ?a ?b }",triple));
         try (TupleQueryResult result = query.evaluate()) {
             assertTrue("Must have two double-nested triples in the result", result.hasNext());
-            assertEquals(2, result.stream().count());
+            assertEquals(1, result.stream().count());
         }
         try (TupleQueryResult result = query.evaluate()) {
             while (result.hasNext()) {

@@ -13,6 +13,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.text.MessageFormat;
 import java.util.*;
+import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
 public class RDFStarTimestampingPlugin extends PluginBase implements StatementListener, PluginTransactionListener, ContextUpdateHandler {
@@ -25,7 +26,9 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 	private boolean triplesTimestamped;
 	private HashSet<Triple> deleteRequestTriples;
 	private boolean statementRemoved;
-	public static final Object globalLock = new Object();
+	ExecutorService executor;
+
+
 
 	// Service interface methods
 	@Override
@@ -44,6 +47,7 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 		deleteRequestTriples = new HashSet<>();
 		triplesTimestamped = false;
 		statementRemoved = false;
+		executor = Executors.newSingleThreadExecutor();
 
 	}
 
@@ -61,15 +65,11 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 
 	@Override
 	public void handleContextUpdate(Resource subject, IRI predicate, Value object, Resource context, boolean isAdded, PluginConnection pluginConnection) {
-		getLogger().info("Handle update");
 		if (isAdded)
 			getLogger().info("Start adding and timestamping triple procedure");
 		else {
-			//if (!triplesTimestamped) {
-			synchronized (globalLock) {
-				String cont = "default";
-				if (context != null)
-					cont = context.stringValue();
+			if (!triplesTimestamped) {
+				String cont = context == null ? "default" : context.stringValue();
 				getLogger().info("Requesting delete of triple: " + subject.stringValue()
 						+ " " + predicate.stringValue() + " " + object.stringValue()
 						+ " within context: " + cont);
@@ -84,10 +84,15 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 		Value p = pluginConnection.getEntities().get(predicate);
 		Value o = pluginConnection.getEntities().get(object);
 		Value c = pluginConnection.getEntities().get(context);
+		/*try {
+			executor.awaitTermination(1000, TimeUnit.NANOSECONDS);
+		} catch (InterruptedException e) {
+			getLogger().info(e.getMessage());
+			getLogger().info(Arrays.toString(e.getStackTrace()));
+		}*/
 		getLogger().info("Add statement:" + s + " " + p + " " + o + " within context:" + c);
 
-		//if (!triplesTimestamped) {
-		synchronized (globalLock) {
+		if (!triplesTimestamped) {
 			URL res = getClass().getClassLoader().getResource("timestampedInsertTemplate");
 			assert res != null;
 			String template = "";
@@ -129,9 +134,9 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 		   Third condition: Triples must have not been previously timestamped by the plugin.
 		*/
 
-		if(!statementRemoved && !deleteRequestTriples.isEmpty() && !triplesTimestamped) {
+		if (!statementRemoved && !deleteRequestTriples.isEmpty() && !triplesTimestamped) {
 			getLogger().info("Prepare triples to outdate");
-			for (Triple t: deleteRequestTriples) {
+			for (Triple t : deleteRequestTriples) {
 				Value c = t.getContext();
 				Value s = t.getSubject();
 				Value p = t.getPredicate();
@@ -144,8 +149,7 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 				if (Objects.equals(c, null)) {
 					template = "timestampedDeleteTemplate";
 					getLogger().info(s.stringValue() + " " + p.stringValue() + " " + o.stringValue());
-				}
-				else {
+				} else {
 					template = "timestampedDeleteWithContextTemplate";
 					context = entityToString(c);
 					getLogger().info(s.stringValue() + " " + p.stringValue() + " " + o.stringValue() + " " + c.stringValue());
@@ -155,44 +159,33 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 			}
 			deleteRequestTriples.clear();
 		}
+
 	}
 
 	@Override
 	public void transactionCommit(PluginConnection pluginConnection) {
 		getLogger().info("Commit transaction");
 
-		synchronized (globalLock) {
-			if (!updateStrings.isEmpty() && !triplesTimestamped) {
-				Thread newThread = new Thread(() -> {
-					repo = new SPARQLRepository(postEndpoint);
-					try (RepositoryConnection connection = repo.getConnection()) {
-						triplesTimestamped = true;
-						connection.begin();
-						for (Map.Entry<String, Boolean> entry : updateStrings.entrySet()) {
-							if (entry.getValue())
-								getLogger().info("Prepare timestamped insert statement");
-							else
-								getLogger().info("Prepare timestamped delete statement");
-							connection.prepareUpdate(entry.getKey()).execute();
-						}
-						connection.commit();
-						// --> call Main thread
-						// --> complete transaction
-						// --> Handle update
-						// --> start transaction
-						// --> Remove triple
-						// --> Add nested triple
-						// --> commit transaction
-						// --> complete transaction
-						// --> back to this thread
-					} finally {
-						getLogger().info("Clear list of update strings and reset triplesTimestamped flag.");
-						updateStrings.clear();
-						triplesTimestamped = false;
-					}
-				});
-				newThread.start();
-			}
+		if (!updateStrings.isEmpty() && !triplesTimestamped) {
+			 executor.execute(() -> {
+				 repo = new SPARQLRepository(postEndpoint);
+				 try (RepositoryConnection connection = repo.getConnection()) {
+					 triplesTimestamped = true;
+					 connection.begin();
+					 for (Map.Entry<String, Boolean> entry : updateStrings.entrySet()) {
+						 if (entry.getValue())
+							 getLogger().info("Prepare timestamped insert statement");
+						 else
+							 getLogger().info("Prepare timestamped delete statement");
+						 connection.prepareUpdate(entry.getKey()).execute();
+					 }
+					 connection.commit();
+				 } finally {
+					 getLogger().info("Clear list of update strings and reset triplesTimestamped flag.");
+					 updateStrings.clear();
+					 triplesTimestamped = false;
+				 }
+			 });
 		}
 	}
 
