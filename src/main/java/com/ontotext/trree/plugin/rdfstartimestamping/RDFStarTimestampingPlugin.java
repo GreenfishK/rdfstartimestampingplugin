@@ -27,7 +27,7 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 	private HashSet<Triple> deleteRequestTriples;
 	private boolean statementRemoved;
 	ExecutorService executor;
-
+	SynchronousQueue<Runnable> queue;
 
 
 	// Service interface methods
@@ -46,11 +46,10 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 		updateStrings = new HashMap<>();
 		deleteRequestTriples = new HashSet<>();
 		pluginUpdateRequestCommitted = false;
+		queue = new SynchronousQueue<Runnable>();
 		statementRemoved = false;
-		executor = Executors.newSingleThreadExecutor();
-		//executor = new ThreadPoolExecutor(1, 5, 0, TimeUnit.SECONDS, new SynchronousQueue<Runnable>());
-		//executor = Executors.newFixedThreadPool(1);
-		//executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
+		executor = new ThreadPoolExecutor(4, 16, 2000,
+				TimeUnit.SECONDS, queue, new ThreadPoolExecutor.CallerRunsPolicy());
 
 	}
 
@@ -80,45 +79,6 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 				deleteRequestTriples.add(new Triple(subject, predicate, object, context));
 			}
 		}
-	}
-
-	@Override
-	public boolean statementAdded(long subject, long predicate, long object, long context, boolean isAddition, PluginConnection pluginConnection) {
-		Value s = pluginConnection.getEntities().get(subject);
-		Value p = pluginConnection.getEntities().get(predicate);
-		Value o = pluginConnection.getEntities().get(object);
-		Value c = pluginConnection.getEntities().get(context);
-
-		getLogger().info("Add statement:" + s + " " + p + " " + o + " within context:" + c);
-
-		if (!pluginUpdateRequestCommitted) {
-			//handle user request
-			URL res = getClass().getClassLoader().getResource("timestampedInsertTemplate");
-			assert res != null;
-			String template = "";
-			String cont = "default";
-			if (Objects.equals(c, null))
-				template = "timestampedInsertTemplate";
-			 else {
-				template = "timestampedInsertWithContextTemplate";
-				cont = entityToString(c);
-			}
-			updateStrings.put(MessageFormat.format(readAllBytes(template),
-					cont, entityToString(s), entityToString(p), entityToString(o)), true);
-		}
-		return false;
-	}
-
-	@Override
-	public boolean statementRemoved(long subject, long predicate, long object, long context, boolean isAddition, PluginConnection pluginConnection) {
-		Value s = pluginConnection.getEntities().get(subject);
-		Value p = pluginConnection.getEntities().get(predicate);
-		Value o = pluginConnection.getEntities().get(object);
-		Value c = pluginConnection.getEntities().get(context);
-		getLogger().info("Remove statement:" + s + " " + p + " " + o + " within context:" + c);
-
-		statementRemoved = true;
-		return false;
 	}
 
 	@Override
@@ -161,6 +121,45 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 			deleteRequestTriples.clear();
 		}
 
+	}
+
+	@Override
+	public boolean statementAdded(long subject, long predicate, long object, long context, boolean isAddition, PluginConnection pluginConnection) {
+		Value s = pluginConnection.getEntities().get(subject);
+		Value p = pluginConnection.getEntities().get(predicate);
+		Value o = pluginConnection.getEntities().get(object);
+		Value c = pluginConnection.getEntities().get(context);
+
+		getLogger().info("Add statement:" + s + " " + p + " " + o + " within context:" + c);
+
+		if (!pluginUpdateRequestCommitted) {
+			//handle user request
+			URL res = getClass().getClassLoader().getResource("timestampedInsertTemplate");
+			assert res != null;
+			String template = "";
+			String cont = "default";
+			if (Objects.equals(c, null))
+				template = "timestampedInsertTemplate";
+			else {
+				template = "timestampedInsertWithContextTemplate";
+				cont = entityToString(c);
+			}
+			updateStrings.put(MessageFormat.format(readAllBytes(template),
+					cont, entityToString(s), entityToString(p), entityToString(o)), true);
+		}
+		return false;
+	}
+
+	@Override
+	public boolean statementRemoved(long subject, long predicate, long object, long context, boolean isAddition, PluginConnection pluginConnection) {
+		Value s = pluginConnection.getEntities().get(subject);
+		Value p = pluginConnection.getEntities().get(predicate);
+		Value o = pluginConnection.getEntities().get(object);
+		Value c = pluginConnection.getEntities().get(context);
+		getLogger().info("Remove statement:" + s + " " + p + " " + o + " within context:" + c);
+
+		statementRemoved = true;
+		return false;
 	}
 
 	@Override
