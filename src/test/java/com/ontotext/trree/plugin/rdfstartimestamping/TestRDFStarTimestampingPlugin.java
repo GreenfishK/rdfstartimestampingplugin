@@ -359,7 +359,7 @@ public class TestRDFStarTimestampingPlugin {
         sparqlRepoConnection.begin();
         sparqlRepoConnection.prepareUpdate(updateString).execute();
         sparqlRepoConnection.commit();
-        //Thread.sleep(500);
+        Thread.sleep(500);
 
         updateString = String.format("delete data {%s}", triple);
         sparqlRepoConnection.begin();
