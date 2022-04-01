@@ -432,12 +432,12 @@ public class TestRDFStarTimestampingPlugin {
         try {
             repo.shutDown();
             sparqlRepoConnection.close();
-            //runDocker(shutdownContainer());
+            runDocker(shutdownContainer());
 
             System.out.printf("Connection shutdown and repository %s removed%n", repoId);
             System.out.println("==========================GraphDB main logs==========================");
             getLog(logFilePath).forEach(System.out::println);
-        } catch (NullPointerException e) {
+        } catch (NullPointerException | InterruptedException e) {
             System.out.println("Connection is not open and can therefore be not closed.");
         } catch (IOException e) {
             e.printStackTrace();
