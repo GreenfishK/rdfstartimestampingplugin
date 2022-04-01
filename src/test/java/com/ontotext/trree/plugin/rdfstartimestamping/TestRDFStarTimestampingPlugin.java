@@ -381,7 +381,6 @@ public class TestRDFStarTimestampingPlugin {
 
         TupleQuery query = sparqlRepoConnection.prepareTupleQuery(String.format("select * { <<<<%s>> ?x ?y>> ?a ?b }",triple));
         try (TupleQueryResult result = query.evaluate()) {
-            assertTrue("Must have two double-nested triples in the result", result.hasNext());
             assertEquals(1, result.stream().count());
         }
         try (TupleQueryResult result = query.evaluate()) {
@@ -433,14 +432,14 @@ public class TestRDFStarTimestampingPlugin {
         try {
             repo.shutDown();
             sparqlRepoConnection.close();
-            runDocker(shutdownContainer());
+            //runDocker(shutdownContainer());
 
             System.out.printf("Connection shutdown and repository %s removed%n", repoId);
             System.out.println("==========================GraphDB main logs==========================");
             getLog(logFilePath).forEach(System.out::println);
         } catch (NullPointerException e) {
             System.out.println("Connection is not open and can therefore be not closed.");
-        } catch (IOException | InterruptedException e) {
+        } catch (IOException e) {
             e.printStackTrace();
         }
 
