@@ -9,26 +9,17 @@ import org.eclipse.rdf4j.model.impl.SimpleIRI;
 import org.eclipse.rdf4j.model.impl.SimpleLiteral;
 import org.eclipse.rdf4j.model.impl.SimpleTriple;
 import org.eclipse.rdf4j.repository.Repository;
-import org.eclipse.rdf4j.repository.RepositoryConnection;
-import org.eclipse.rdf4j.repository.sparql.SPARQLRepository;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.net.URL;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.text.MessageFormat;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
-public class TestPluginInterfaces extends PluginBase implements StatementListener, PluginTransactionListener, ContextUpdateHandler {
+public class PluginInterfacesPlayground extends PluginBase implements StatementListener, PluginTransactionListener, ContextUpdateHandler {
 
 	private static final String PREFIX = "http://example.com/";
 	private String getEndpoint;
@@ -218,7 +209,7 @@ public class TestPluginInterfaces extends PluginBase implements StatementListene
 
 	private static String readAllBytes(String resourceName) {
 		String text = "";
-		try (InputStream in = TestPluginInterfaces.class.getResourceAsStream("/" +resourceName)) {
+		try (InputStream in = PluginInterfacesPlayground.class.getResourceAsStream("/" +resourceName)) {
 			assert in != null;
 			text = new BufferedReader(
 					new InputStreamReader(in))

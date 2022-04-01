@@ -343,6 +343,16 @@ public class TestRDFStarTimestampingPlugin {
     public void insertDeleteReInsertDeleteTest() throws InterruptedException {
         //TODO: Problem with concurrent updates. Consecutively inserting, deleting and re-inserting
         // leads to ignorance of the delete handling by the plugin.
+        /*
+         DB requests
+         user: insert
+         plugin: pluginUpdateRequestCommitted=true
+         plugin-insert template: delete block
+         user: delete (does not get processed by plugin because pluginUpdateRequestCommitted=true)
+         plugin-insert template: insert block
+         plugin: pluginUpdateRequestCommitted=false
+
+         */
         defaultGraph = true;
         String triple = "<http://example.com/test#reinsertThisS1> <http://example.com/test#p> <http://example.com/test#reinsertThisO1>";
         String updateString = String.format("insert data {%s}", triple);
