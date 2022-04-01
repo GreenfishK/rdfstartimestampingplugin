@@ -9,7 +9,7 @@
     <version>0.1</version>
 
     <properties>
-        <graphdb.version>9.10.1</graphdb.version>
+        <graphdb.version>9.10.3</graphdb.version>
         <internal.repo>http://maven.ontotext.com/content/repositories/owlim-releases</internal.repo>
         <snapshots.repo>http://maven.ontotext.com/content/repositories/owlim-snapshots</snapshots.repo>
        <!--<java.level>1.8</java.level> -->
