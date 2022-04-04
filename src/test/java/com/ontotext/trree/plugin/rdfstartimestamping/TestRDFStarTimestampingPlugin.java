@@ -259,7 +259,7 @@ public class TestRDFStarTimestampingPlugin {
         sparqlRepoConnection.prepareUpdate(updateString).execute();
         sparqlRepoConnection.commit();
 
-        Thread.sleep(5000);
+        Thread.sleep(1000);
 
         TupleQuery query = sparqlRepoConnection.prepareTupleQuery(String.format("select * { <<<<%s>> ?x ?y>> ?a ?b }", triple));
 
@@ -330,6 +330,21 @@ public class TestRDFStarTimestampingPlugin {
     @Test
     public void queryLiveDataTest() {
         defaultGraph = true;
+        TupleQuery query = sparqlRepoConnection.prepareTupleQuery(
+                "select * { {<<<<?s <http://example.com/queries/predicate1> ?o >> ?x ?y>> ?a ?b}}");
+
+        try (TupleQueryResult result = query.evaluate()) {
+            int c = 0;
+            while (result.hasNext()) {
+                BindingSet bs = result.next();
+                String s = bs.getValue("s").stringValue();
+                String o = bs.getValue("o").stringValue();
+                c++;
+                assertEquals("<http://example.com/queries/queryThisSubject2>", s);
+                assertEquals("<http://example.com/queries/queryThisObject2>", o);
+            }
+            assertEquals(1, c);
+        }
         fail("not yet implemented");
     }
 
@@ -366,11 +381,11 @@ public class TestRDFStarTimestampingPlugin {
         sparqlRepoConnection.prepareUpdate(updateString).execute();
         sparqlRepoConnection.commit();
 
-        /*updateString = String.format("insert data {%s}", triple);
+        updateString = String.format("insert data {%s}", triple);
         sparqlRepoConnection.begin();
         sparqlRepoConnection.prepareUpdate(updateString).execute();
         sparqlRepoConnection.commit();
-        //Thread.sleep(2000);
+        Thread.sleep(500);
 
         updateString = String.format("delete data {%s}", triple);
         sparqlRepoConnection.begin();
@@ -480,8 +495,12 @@ public class TestRDFStarTimestampingPlugin {
     private static int getLastLineNumber(String filePath) {
         int lastLineNumber = -1;
         try {
-            ArrayList<String> logs = (ArrayList<String>) FileUtils.readLines(new File(filePath), "UTF-8");
-            lastLineNumber = logs.size();
+            File logFile = new File(filePath);
+            if (logFile.exists()) {
+                ArrayList<String> logs = (ArrayList<String>) FileUtils.readLines(new File(filePath), "UTF-8");
+                lastLineNumber = logs.size();
+            } else
+                return 0;
         } catch (IOException e) {
             System.err.println(e.getMessage());
         }

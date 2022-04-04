@@ -16,7 +16,7 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
-public class RDFStarTimestampingPlugin extends PluginBase implements StatementListener, PluginTransactionListener, ContextUpdateHandler {
+public class RDFStarTimestampingPlugin extends PluginBase implements StatementListener, PluginTransactionListener, ContextUpdateHandler, Preprocessor {
 
 	private static final String PREFIX = "http://example.com/";
 	private String getEndpoint;
@@ -67,6 +67,7 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 
 	@Override
 	public void handleContextUpdate(Resource subject, IRI predicate, Value object, Resource context, boolean isAdded, PluginConnection pluginConnection) {
+		//getLogger().info("Is added: " + isAdded);
 		if (isAdded)
 			getLogger().info("Start adding and timestamping triple procedure");
 		else {
@@ -112,11 +113,11 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 					getLogger().info("Prepare triples to outdate: " + s.stringValue() + " " + p.stringValue() + " " + o.stringValue());
 				} else {
 					template = "timestampedDeleteWithContextTemplate";
-					context = entityToString(c);
+					context = PluginUtils.entityToString(c);
 					getLogger().info("Prepare triples to outdate: " + s.stringValue() + " " + p.stringValue() + " " + o.stringValue() + " " + c.stringValue());
 				}
-				updateStrings.put(MessageFormat.format(readAllBytes(template),
-						context, entityToString(s), entityToString(p), entityToString(o)), false);
+				updateStrings.put(MessageFormat.format(PluginUtils.readAllBytes(template),
+						context, PluginUtils.entityToString(s), PluginUtils.entityToString(p), PluginUtils.entityToString(o)), false);
 			}
 			deleteRequestTriples.clear();
 		}
@@ -142,10 +143,10 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 				template = "timestampedInsertTemplate";
 			else {
 				template = "timestampedInsertWithContextTemplate";
-				cont = entityToString(c);
+				cont = PluginUtils.entityToString(c);
 			}
-			updateStrings.put(MessageFormat.format(readAllBytes(template),
-					cont, entityToString(s), entityToString(p), entityToString(o)), true);
+			updateStrings.put(MessageFormat.format(PluginUtils.readAllBytes(template),
+					cont, PluginUtils.entityToString(s), PluginUtils.entityToString(p), PluginUtils.entityToString(o)), true);
 		}
 		return false;
 	}
@@ -203,121 +204,13 @@ public class RDFStarTimestampingPlugin extends PluginBase implements StatementLi
 
 	}
 
-
-
-
-
-
-
-	private class Triple implements org.eclipse.rdf4j.model.Triple {
-		private Resource subject;
-		private IRI predicate;
-		private Value object;
-		private Resource context;
-
-		public Triple(Resource subject, IRI predicate, Value object, Resource context) {
-			this.subject = subject;
-			this.predicate = predicate;
-			this.object = object;
-			this.context = context;
-
+	@Override
+	public RequestContext preprocess(Request request) {
+		if (request instanceof QueryRequest) {
+			getLogger().info(String.valueOf(((QueryRequest) request).getTupleExpr().getBindingNames()));
+			getLogger().info(String.valueOf(((QueryRequest) request).getBindings().getBindingNames()));
 		}
-
-		public Resource getSubject() {
-			return this.subject;
-		}
-
-		public IRI getPredicate() {
-			return this.predicate;
-		}
-
-		public Value getObject() {
-			return this.object;
-		}
-
-		public Resource getContext() {
-			return this.context;
-		}
-
-		@Override
-		public boolean equals(Object o) {
-			if (o == this)
-				return true;
-			if (!(o instanceof Triple)) {
-				return false;
-			}
-			Triple t = (Triple) o;
-
-			boolean equal = Objects.equals(t.subject.stringValue(), this.subject.stringValue()) &&
-					Objects.equals(t.predicate.stringValue(), this.predicate.stringValue()) &&
-					Objects.equals(t.object.stringValue(), this.object.stringValue());
-
-			if (t.context == null || this.context == null)
-				return equal;
-			else
-				return equal && Objects.equals(t.context.stringValue(), this.context.stringValue());
-		}
-
-
-		@Override
-		public String stringValue() {
-			return subject.stringValue() + " " + predicate.toString() + " " + object.toString();
-		}
-
-		@Override
-		public int hashCode() {
-			MessageDigest messageDigest = null;
-			String stringHash = "";
-			try {
-				messageDigest = MessageDigest.getInstance("SHA-256");
-
-				String stringToHash = subject.stringValue() + predicate.stringValue() + object.stringValue();
-				if (context != null)
-					stringToHash += context.stringValue();
-				messageDigest.update(stringToHash.getBytes());
-				stringHash = new String(messageDigest.digest());
-
-				return stringHash.hashCode();
-			} catch (NoSuchAlgorithmException e) {
-				e.printStackTrace();
-			}
-			return stringHash.hashCode();
-		}
-	}
-
-
-	private String entityToString(Value value) {
-		if (value instanceof SimpleIRI)
-			return "<" + value + ">";
-		if (value instanceof SimpleLiteral)
-			return value.toString();
-		if (value instanceof SimpleBNode)
-			return value.toString();
-		if (value instanceof SimpleTriple) {
-			Value s = ((SimpleTriple) value).getSubject();
-			Value p = ((SimpleTriple) value).getPredicate();
-			Value o = ((SimpleTriple) value).getObject();
-			return "<<" + entityToString(s) + " " + entityToString(p) + " " + entityToString(o) + ">>";
-		}
-		if (value instanceof Resource)
-			return "<" + value + ">";
-		getLogger().error("The entity's type is not support. It is none of: IRI, literal, BNode, Triple");
 		return null;
 	}
-
-	private static String readAllBytes(String resourceName) {
-		String text = "";
-		try (InputStream in = RDFStarTimestampingPlugin.class.getResourceAsStream("/" +resourceName)) {
-			assert in != null;
-			text = new BufferedReader(
-					new InputStreamReader(in))
-					.lines()
-					.collect(Collectors.joining("\n"));
-		}  catch (IOException e) {
-			e.printStackTrace();
-		}
-		return text;
-	}
-
 
 }
